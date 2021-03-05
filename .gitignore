@@ -1,0 +1,10 @@
+logs
+wandb
+debug
+__pycache__
+.idea
+*.log
+vec_env
+_agents
+cmd
+experiments

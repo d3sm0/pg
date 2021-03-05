@@ -1,0 +1,6 @@
+tensorboardX
+GitPython
+gym
+wandb
+gym-minigrid
+torch
