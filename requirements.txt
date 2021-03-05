@@ -4,3 +4,4 @@ gym
 wandb
 gym-minigrid
 torch
+git+git:https://github.com/manuel-delverme/mila_tools.git
