@@ -181,11 +181,11 @@ def main():
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
     for global_step in itertools.count():
         info = gather_trajectory(env, model, config.horizon)
-        config.tensorboard.add_scalar("return", info["env/returns"], global_step=global_step)
+        config.tb.add_scalar("return", info["env/returns"], global_step=global_step)
         losses = model.train_net()
         model.data.clear()
         for k, v in losses.items():
-            config.tensorboard.add_scalar(k, v, global_step=global_step)
+            config.tb.add_scalar(k, v, global_step=global_step)
         # if global_step % config.save_interval == 0:
         #    torch.save(model, f"{writer.log_dir}/latest.pt")
         if (global_step * config.horizon) == config.max_steps:
