@@ -1,0 +1,31 @@
+program: ppo.py
+method: bayes
+metric:
+  name: "train/avg_reward"
+  goal: maximize
+command:
+  - "${env}"
+  - "${interpreter}"
+  - "${program}"
+  - --env_id=pendulum
+  - --agent_id=sfvg
+  - --experiment_id=sweep
+  - "${args}"
+parameters:
+  agent_lr:
+    distribution: uniform
+    max: 1e-2
+    min: 1e-4
+  beta:
+    distribution: uniform
+    max: 1.0
+    min: 0.5
+  alpha:
+    distribution: uniform
+    max: 1.0
+    min: 0.5
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 27

@@ -1,0 +1,5 @@
+program: ppo.py
+method: grid
+parameters:
+  ^seed:
+    values: [984,28,3587,969,5522,8043]
