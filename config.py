@@ -18,14 +18,12 @@ opt_epochs = 5
 horizon = 64
 batch_size = 32
 eta = 1.
-as_ppo = True
+agent = True
 save_interval = 200
 max_steps = int(1e4)
 seed = 0
 h_dim = 32
 wandb_mode = "offline"
-
-random_seed = 1337
 
 use_cuda = False
 

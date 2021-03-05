@@ -79,7 +79,7 @@ class PPO(nn.Module):
                 kl = torch.distributions.kl_divergence(pi_old, pi).mean()
                 assert kl.isfinite().all()
                 total_kl += kl
-                if config.as_ppo:
+                if config.agent == "ppo":
                     ratio = torch.exp(pi.log_prob(a) - pi_old.log_prob(a))
                     surr1 = ratio * delta
                     surr2 = torch.clamp(ratio, 1 - config.eps_clip, 1 + config.eps_clip) * delta
@@ -174,6 +174,7 @@ def gather_trajectory(env, model, horizon):
 def main():
     env = FourRoomsEnv(goal_pos=(12, 16))
     torch.manual_seed(config.seed)
+    print(config.agent)
     env.seed(config.seed)
     env = MiniGridWrapper(env)
     model = PPO(action_space=env.action_space.n, observation_space=env.observation_space.shape[0], h_dim=config.h_dim)
