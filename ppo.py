@@ -189,7 +189,7 @@ def main():
             config.tb.add_scalar(k, v, global_step=global_step)
         # if global_step % config.save_interval == 0:
         #    torch.save(model, f"{writer.log_dir}/latest.pt")
-        if (global_step * config.horizon) == config.max_steps:
+        if (global_step * config.horizon) > config.max_steps:
             break
 
     env.close()
