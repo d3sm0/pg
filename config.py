@@ -5,7 +5,7 @@ import torch
 
 RUN_SWEEP = 1
 REMOTE = 1
-NUM_PROCS = 1
+NUM_PROCS = 5
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
