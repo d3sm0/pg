@@ -5,7 +5,7 @@ import torch
 
 RUN_SWEEP = 1
 REMOTE = 1
-NUM_PROCS = 1
+NUM_PROCS = 20
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
@@ -36,5 +36,15 @@ device = torch.device("cuda" if use_cuda else "cpu")
 # esh = """
 # #SBATCH --mem=24GB
 # """
-esh = ""
+esh = """
+#SBATCH --job-name=spython
+#SBATCH --output=job_output.txt
+#SBATCH --error=job_error.txt
+#SBATCH --time=2-00:00
+#SBATCH --mem=12GB
+#SBATCH --gres=gpu:0
+#SBATCH --cpus-per-task=4
+#SBATCH --partition=long
+#SBATCH --get-user-env=L
+"""
 tb = mila_tools.deploy(host=HOST, sweep_yaml=sweep_yaml, extra_slurm_headers=esh, proc_num=NUM_PROCS)
