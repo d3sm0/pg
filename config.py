@@ -23,7 +23,7 @@ save_interval = 200
 max_steps = int(5e6)
 seed = 0
 h_dim = 32
-wandb_mode = "offline"
+# wandb_mode = "offline"
 
 use_cuda = False
 
