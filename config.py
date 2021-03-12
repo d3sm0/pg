@@ -21,9 +21,9 @@ eta = 1.
 agent = "pg"
 save_interval = 200
 max_steps = int(5e6)
-seed = 0
+seed = 984
 h_dim = 32
-wandb_mode = "offline"
+# wandb_mode = "offline"
 
 use_cuda = False
 
@@ -42,7 +42,7 @@ esh = """
 #SBATCH --error=job_error.txt
 #SBATCH --time=2-00:00
 #SBATCH --mem=12GB
-#SBATCH --gres=gpu:0
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=long
 #SBATCH --get-user-env=L
