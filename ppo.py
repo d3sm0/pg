@@ -14,6 +14,10 @@ from torch.distributions import Categorical
 import config
 
 
+def get_grad_norm(parameters):
+    return torch.norm(torch.cat([p.grad.flatten() for p in parameters]))
+
+
 class PPO(nn.Module):
     def __init__(self, observation_space, action_space, h_dim):
         super(PPO, self).__init__()
@@ -66,6 +70,7 @@ class PPO(nn.Module):
                 self.value_opt.step()
                 total_td += v_loss
 
+        grad_norm = 0.
         for i in range(config.opt_epochs):
             for (s, a, r, s_prime, done_mask, pi_old) in data_loader:
                 with torch.no_grad():
@@ -90,10 +95,12 @@ class PPO(nn.Module):
             self.pi_opt.zero_grad()
             assert torch.isfinite(loss)
             loss.backward()
+            grad_norm += get_grad_norm(self.parameters())
             self.pi_opt.step()
             total_loss += loss
 
         return {
+            "train/grad_norm": grad_norm / config.opt_epochs,
             "train/kl": total_kl / config.opt_epochs,
             "train/v_loss": total_td / config.opt_epochs,
             "train/pi_loss": total_loss / config.opt_epochs,
@@ -113,6 +120,7 @@ class MiniGridWrapper(gym.Wrapper):
         )
         self.t = None
         self.max_steps = 200
+        self.ep = 0
         self.reset()
 
     def step(self, action):
@@ -122,10 +130,12 @@ class MiniGridWrapper(gym.Wrapper):
         self.t += 1
         self.returns += r
         info = {"env/reward": r,
+                "env/ep": self.ep,
                 "env/avg_reward": self.returns / (self.t + 1),
                 "env/returns": self.returns,
                 "env/steps": self.t}
         if self.t >= self.max_steps:
+            self.ep += 1
             d = True
         return s1, r, d, info
 

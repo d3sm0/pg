@@ -1,0 +1,18 @@
+program: ppo.py
+method: bayes
+metric:
+  name: return
+  goal: maximize
+parameters:
+  ^opt_epochs:
+    distribution: int_uniform
+    min: 2
+    max: 20
+  ^learning_rate:
+      distribution: uniform
+      min: 0.0001
+      max: 0.001
+  ^eta:
+      distribution: uniform
+      min: 0.0001
+      max: 0.001
