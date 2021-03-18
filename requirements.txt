@@ -4,4 +4,4 @@ gym
 wandb
 gym-minigrid
 torch
-git+git://github.com/manuel-delverme/mila_tools.git#egg=mila_tools
+git+git://github.com/ministry-of-silly-code/experiment_buddy.git#egg=experiment_buddy
