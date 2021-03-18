@@ -10,8 +10,13 @@ import torch.utils.data as torch_data
 from gym_minigrid.envs import FourRoomsEnv
 from torch.distributions import Categorical
 
+from eval_policy import eval_policy
 # Hyperparameters
 import config
+
+
+def get_grad_norm(parameters):
+    return torch.norm(torch.cat([p.grad.flatten() for p in parameters]))
 
 
 class PPO(nn.Module):
@@ -66,6 +71,7 @@ class PPO(nn.Module):
                 self.value_opt.step()
                 total_td += v_loss
 
+        grad_norm = 0.
         for i in range(config.opt_epochs):
             for (s, a, r, s_prime, done_mask, pi_old) in data_loader:
                 with torch.no_grad():
@@ -90,10 +96,12 @@ class PPO(nn.Module):
             self.pi_opt.zero_grad()
             assert torch.isfinite(loss)
             loss.backward()
+            grad_norm += get_grad_norm(self.parameters())
             self.pi_opt.step()
             total_loss += loss
 
         return {
+            "train/grad_norm": grad_norm / config.opt_epochs,
             "train/kl": total_kl / config.opt_epochs,
             "train/v_loss": total_td / config.opt_epochs,
             "train/pi_loss": total_loss / config.opt_epochs,
@@ -113,19 +121,22 @@ class MiniGridWrapper(gym.Wrapper):
         )
         self.t = None
         self.max_steps = 200
+        self.ep = 0
         self.reset()
 
     def step(self, action):
         r = self.reward()
-        s1, _, d, info = super(MiniGridWrapper, self).step(action)
+        _, _, d, info = super(MiniGridWrapper, self).step(action)
         s1 = self.observation()
         self.t += 1
         self.returns += r
         info = {"env/reward": r,
+                "env/ep": self.ep,
                 "env/avg_reward": self.returns / (self.t + 1),
                 "env/returns": self.returns,
                 "env/steps": self.t}
         if self.t >= self.max_steps:
+            self.ep += 1
             d = True
         return s1, r, d, info
 
@@ -178,7 +189,7 @@ def main():
     env.seed(config.seed)
     env = MiniGridWrapper(env)
     model = PPO(action_space=env.action_space.n, observation_space=env.observation_space.shape[0], h_dim=config.h_dim)
-    dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
+    # dtm = datetime.now().strftime("%d-%H-%M-%S-%f")
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
     for global_step in itertools.count():
         info = gather_trajectory(env, model, config.horizon)
@@ -187,8 +198,9 @@ def main():
         model.data.clear()
         for k, v in losses.items():
             config.tb.add_scalar(k, v, global_step=global_step)
-        # if global_step % config.save_interval == 0:
-        #    torch.save(model, f"{writer.log_dir}/latest.pt")
+        if global_step % config.save_interval == 0:
+            log_dir = config.tb.add_object('model', model, global_step=global_step)
+            eval_policy(log_dir=log_dir)
         if (global_step * config.horizon) > config.max_steps:
             break
 
