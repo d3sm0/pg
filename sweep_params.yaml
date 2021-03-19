@@ -12,6 +12,10 @@ parameters:
     distribution: int_uniform
     min: 1
     max: 20
+  ^horizon:
+    distribution: int_uniform
+    min: 32
+    max: 2048
   ^eta:
     distribution: uniform
     min: 0.0001
