@@ -11,13 +11,13 @@ sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
-learning_rate = 1e-3
+learning_rate = 0.037
 gamma = 0.99
 eps_clip = 0.1
-opt_epochs = 10
-horizon = 256 if DEBUG else 2048
+opt_epochs = 3
+horizon = 16  # if DEBUG else 2048
 batch_size = 32
-eta = 0.01
+eta = 0.05951
 grid_size = 8
 agent = "pg"
 save_interval = 100
