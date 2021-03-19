@@ -131,14 +131,14 @@ class PPO(PG):
                     delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
-                kl = torch.distributions.kl_divergence(pi_old, pi).mean()
+                kl = torch.distributions.kl_divergence(pi_old, pi)
                 assert kl.isfinite().all()
-                loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a)).mean() * delta + config.eta * kl
+                loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a)) * delta + config.eta * kl
                 # surr1 = ratio * delta
                 # surr2 = torch.clamp(ratio, 1 - config.eps_clip, 1 + config.eps_clip) * delta
                 # loss = -torch.min(surr1, surr2).mean()
-                total_loss += loss
-                total_kl += kl
+                total_loss += loss.mean()
+                total_kl += kl.mean()
                 total_entropy += pi.entropy().mean()
 
             self.pi_opt.zero_grad()
