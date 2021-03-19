@@ -19,7 +19,7 @@ horizon = 256 if DEBUG else 2048
 batch_size = 32
 eta = 0.01
 grid_size = 8
-agent = "ppo"
+agent = "pg"
 save_interval = 100
 max_steps = int(1e7)
 seed = 984
@@ -46,6 +46,7 @@ esh = """
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=long
+#SBATCH --exclude=cn_c[001-040]
 #SBATCH --get-user-env=L
 """
 tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, extra_slurm_headers=esh, proc_num=NUM_PROCS)
