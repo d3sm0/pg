@@ -5,7 +5,7 @@ import numpy as np
 class MiniGridWrapper(gym.Wrapper):
     def __init__(self, env):
         super(MiniGridWrapper, self).__init__(env)
-        # self.action_space = gym.spaces.Discrete(n=3)
+        #self.action_space = gym.spaces.Discrete(n=10)
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
@@ -17,6 +17,7 @@ class MiniGridWrapper(gym.Wrapper):
         self.reset()
 
     def step(self, action):
+        #action = min(action, self.unwrapped.action_space.n - 1)
         s1, _, d, info = super(MiniGridWrapper, self).step(action)
         r = self.reward()
         s1 = self.observation()
