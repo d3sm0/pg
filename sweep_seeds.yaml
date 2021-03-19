@@ -5,6 +5,6 @@ metric:
   goal: maximize
 parameters:
   ^agent:
-    values: [ "pg" , "ppo" ]
+    values: [ "ppo" ]
   ^seed:
     values: [ 984,28,3587,969,5522,8043 , 50, 342, 99532, 5 ]
