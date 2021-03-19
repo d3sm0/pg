@@ -1,0 +1,18 @@
+program: main.py
+method: bayes
+metric:
+  name: return
+  goal: maximize
+parameters:
+  ^learning_rate:
+    distribution: uniform
+    min: 0.001
+    max: 0.01
+  ^opt_epochs:
+    distribution: int_uniform
+    min: 1
+    max: 20
+  ^eta:
+    distribution: uniform
+    min: 0.0001
+    max: 0.1
