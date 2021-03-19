@@ -1,16 +1,10 @@
-program: ppo.py
+program: main.py
 method: grid
 metric:
   name: return
   goal: maximize
 parameters:
   ^agent:
-    values: [ "pg" ]
-  ^learning_rate:
-    values: [0.001, 0.005, 0.01, 0.05, 0.1]
-  ^opt_epochs:
-    values: [2, 4, 8, 12, 14]
-  ^eta:
-    values: [0.001, 0.005, 0.01, 0.05, 0.1]
+    values: [ "pg" , "ppo" ]
   ^seed:
     values: [ 984,28,3587,969,5522,8043 , 50, 342, 99532, 5 ]
