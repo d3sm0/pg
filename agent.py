@@ -75,7 +75,7 @@ class PG:
             total_entropy = 0
             for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
                 with torch.no_grad():
-                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
+                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask  # - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
                 kl = torch.distributions.kl_divergence(pi_old, pi).mean()
@@ -128,7 +128,7 @@ class PPO(PG):
             total_entropy = 0
             for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
                 with torch.no_grad():
-                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
+                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask # - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
                 kl = torch.distributions.kl_divergence(pi_old, pi)
