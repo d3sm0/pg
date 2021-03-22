@@ -1,0 +1,12 @@
+program: main.py
+method: grid
+metric:
+  name: eval/env/returns
+  goal: maximize
+parameters:
+  ^learning_rate:
+    values: [ 0.0001, 0.0003, 0.0006, 0.0009, 0.001, 0.003, 0.006, 0.009 ]
+  ^horizon:
+    values: [ 800, 1200, 1600, 2000,2400 ]
+  ^seed:
+    values: [ 984,28,3587,969 ]
