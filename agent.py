@@ -12,7 +12,10 @@ class ActorCritic(nn.Module):
         super(ActorCritic, self).__init__()
 
         self.v = nn.Sequential(nn.Linear(observation_space, h_dim),
-                               nn.ReLU(), nn.Linear(h_dim, h_dim), nn.ReLU(),
+                               nn.ReLU(),
+                               nn.Linear(h_dim, h_dim),
+                               # nn.Dropout(),
+                               nn.ReLU(),
                                nn.Linear(h_dim, 1))
         self.pi = nn.Sequential(nn.Linear(observation_space, h_dim), nn.ReLU(),
                                 nn.Linear(h_dim, h_dim), nn.ReLU(),
@@ -60,13 +63,13 @@ class PG:
         with torch.no_grad():
             probs_old = self._agent.policy(s)
         dataset = torch_data.TensorDataset(*(s, a, r, s_prime, done_mask, probs_old))
-        data_loader = torch_data.DataLoader(dataset, batch_size=config.batch_size)
+        data_loader = torch_data.DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
 
         td_stats = self._train_value(data_loader)
 
         pi_stats = self._train_pi(data_loader)
 
-        return {**pi_stats, **td_stats}
+        return {**td_stats, **pi_stats}
 
     def _train_pi(self, data_loader):
         for i in range(config.opt_epochs):
@@ -75,11 +78,18 @@ class PG:
             total_entropy = 0
             for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
                 with torch.no_grad():
-                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
-                pi_old = torch.distributions.Categorical(probs=probs_old)
-                pi = torch.distributions.Categorical(probs=self._agent.policy(s))
-                kl = torch.distributions.kl_divergence(pi_old, pi).mean()
-                assert kl.isfinite().all()
+                    delta = r + config.gamma * self._agent.value(s_prime) * done_mask - self._agent.value(s)
+                # pi_old = torch.distributions.Categorical(probs=probs_old)
+                pi = self._agent.policy(s)
+                ratio = torch.log(probs_old / pi).clamp_min(0.)
+                kl = (pi * ratio).sum(dim=-1).mean()
+                assert kl >= 0. and kl.isfinite()
+                pi = torch.distributions.Categorical(probs=pi)
+                # import torch.nn.functional as F
+                # actions = F.one_hot(a.long(), 6)
+                # log_prob = (torch.log(pi) * actions).sum(dim=-1)
+                # pi = torch.distributions.Categorical(probs=self._agent.policy(s))
+                # kl = torch.distributions.kl_divergence(pi_old, pi).mean()
                 loss = - (pi.log_prob(a) * delta).mean() + config.eta * kl
                 total_loss += loss
                 total_kl += kl
@@ -101,20 +111,31 @@ class PG:
             "train/kl": total_kl,
             "train/pi_loss": total_loss,
             "train/entropy": total_entropy,
+            "train/grad_norm": grad_norm
         }
 
     def _train_value(self, data_loader):
-        for _ in range(config.opt_epochs):
+        for _ in range(config.value_epoch):
             total_loss = 0
             for (s, a, r, s_prime, done_mask, _) in data_loader:
-                delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
-                v_loss = 0.5 * (delta ** 2).mean()
+                delta = r + config.gamma * self._agent.value(s_prime) * done_mask - self._agent.value(s)
+                reg = l2_reg(self._agent.v.named_parameters())
+                v_loss = 0.5 * (delta ** 2).mean()  # +  reg
                 assert torch.isfinite(v_loss)
                 self.value_opt.zero_grad()
                 v_loss.backward()
                 self.value_opt.step()
                 total_loss += v_loss
-        return {"train/v_loss": total_loss}
+        return {"train/v_loss": total_loss,
+                "train/l2_reg": reg}
+
+
+def l2_reg(params, reg=1e-3):
+    total_norm = 0
+    for name, p in params:
+        if "bias" not in name:
+            total_norm += p.norm()
+    return reg * total_norm
 
 
 class PPO(PG):
@@ -128,7 +149,7 @@ class PPO(PG):
             total_entropy = 0
             for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
                 with torch.no_grad():
-                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
+                    delta = r + config.gamma * self._agent.value(s_prime) * done_mask - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
                 kl = torch.distributions.kl_divergence(pi_old, pi)
@@ -151,4 +172,5 @@ class PPO(PG):
             "train/kl": total_kl,
             "train/pi_loss": total_loss,
             "train/entropy": total_entropy,
+            "train/grad_norm": grad_norm,
         }
