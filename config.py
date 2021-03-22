@@ -1,3 +1,4 @@
+import getpass
 import sys
 
 import experiment_buddy
@@ -5,25 +6,28 @@ import torch
 
 RUN_SWEEP = 1
 REMOTE = 1
-NUM_PROCS = 20
+NUM_PROCS = 4
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
-learning_rate = 1e-3
+user = getpass.getuser()
+learning_rate = 1e-4
+# lr_decay = 0.99
 gamma = 0.99
 eps_clip = 0.1
 opt_epochs = 10
-horizon = 256 if DEBUG else 2048
-batch_size = 32
-eta = 0.01
+horizon = 256 if DEBUG else int(1e4)
+batch_size = horizon
+eta = 0.
 grid_size = 8
-agent = "pg"
-save_interval = 100
-max_steps = int(5e5)
+agent = "ppo"
+save_interval = 50
+max_steps = int(200)
 seed = 984
 h_dim = 32
+eval_runs = 10
 # wandb_mode = "online" if DEBUG else "offline"
 
 use_cuda = False
