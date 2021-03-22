@@ -3,21 +3,23 @@ import sys
 import experiment_buddy
 import torch
 
-RUN_SWEEP = 1
-REMOTE = 1
+RUN_SWEEP = 0
+REMOTE = 0
 NUM_PROCS = 20
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
-learning_rate = 1e-3
+eval_runs = 5
+pi_lr = 1e-3
+v_lr = 1e-3
 gamma = 0.99
 eps_clip = 0.1
 opt_epochs = 10
 horizon = 256 if DEBUG else 2048
 batch_size = 32
-eta = 0.01
+eta = 0.00
 grid_size = 8
 agent = "pg"
 save_interval = 100

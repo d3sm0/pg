@@ -6,6 +6,7 @@ from gym_minigrid.envs import EmptyEnv
 import config
 from agent import PG, PPO
 from env_utils import MiniGridWrapper
+from eval_policy import eval_policy
 
 
 def gather_trajectory(env, model, horizon):
@@ -41,9 +42,10 @@ def main():
         for k, v in losses.items():
             config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
         if global_step % config.save_interval == 0:
-            config.tb.add_object("agent", agent.get_model(), global_step=0)
-        if (global_step * config.horizon) > config.max_steps:
-            break
+            path = config.tb.add_object("agent", agent.get_model(), global_step=0)
+            eval_info = eval_policy(path, config.eval_runs)
+            for k, v in eval_info.items():
+                config.tb.add_scalar(k, v, global_step=global_step)
     env.close()
 
 

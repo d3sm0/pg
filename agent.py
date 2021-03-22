@@ -7,6 +7,18 @@ from torch.utils import data as torch_data
 import config
 
 
+# def debug_grad(m, i, o):
+#    print(m)
+#    print(i)
+#    print(o)
+#
+
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.orthogonal_(m.weight)
+        m.bias.data.fill_(0.00)
+
+
 class ActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, h_dim):
         super(ActorCritic, self).__init__()
@@ -17,6 +29,8 @@ class ActorCritic(nn.Module):
         self.pi = nn.Sequential(nn.Linear(observation_space, h_dim), nn.ReLU(),
                                 nn.Linear(h_dim, h_dim), nn.ReLU(),
                                 nn.Linear(h_dim, action_space))
+
+        self.apply(init_weights)
 
     def policy(self, x):
         x = self.pi(x)
@@ -34,8 +48,8 @@ def get_grad_norm(parameters):
 class PG:
     def __init__(self, observation_space, action_space, h_dim):
         self._agent = ActorCritic(observation_space, action_space, h_dim)
-        self.pi_opt = optim.SGD(self._agent.pi.parameters(), lr=config.learning_rate)
-        self.value_opt = optim.SGD(self._agent.v.parameters(), lr=config.learning_rate)
+        self.pi_opt = optim.SGD(self._agent.pi.parameters(), lr=config.pi_lr)
+        self.value_opt = optim.SGD(self._agent.v.parameters(), lr=config.v_lr)
         self.data = []
 
     def get_model(self):
@@ -75,46 +89,41 @@ class PG:
             total_entropy = 0
             for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
                 with torch.no_grad():
-                    delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
+                    delta = r + config.gamma * self._agent.value(s_prime).detach() - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
                 kl = torch.distributions.kl_divergence(pi_old, pi).mean()
                 assert kl.isfinite().all()
                 loss = - (pi.log_prob(a) * delta).mean() + config.eta * kl
+
                 total_loss += loss
                 total_kl += kl
                 total_entropy += pi.entropy().mean()
 
-                # if config.agent == "ppo":
-                #    ratio = torch.exp(pi.log_prob(a) - pi_old.log_prob(a))
-                #    surr1 = ratio * delta
-                #    surr2 = torch.clamp(ratio, 1 - config.eps_clip, 1 + config.eps_clip) * delta
-                #    loss = -torch.min(surr1, surr2).mean()
-                # else:
-            self.pi_opt.zero_grad()
-            total_loss.backward()
-            grad_norm = get_grad_norm(self._agent.pi.parameters())
-            assert torch.isfinite(grad_norm)
-            self.pi_opt.step()
+                self.pi_opt.zero_grad()
+                loss.backward()
+                grad_norm = get_grad_norm(self._agent.pi.parameters())
+                assert torch.isfinite(grad_norm)
+                self.pi_opt.step()
 
         return {
-            "train/kl": total_kl,
-            "train/pi_loss": total_loss,
-            "train/entropy": total_entropy,
+            "train/kl": total_kl / len(data_loader),
+            "train/pi_loss": total_loss / len(data_loader),
+            "train/entropy": total_entropy / len(data_loader),
         }
 
     def _train_value(self, data_loader):
         for _ in range(config.opt_epochs):
             total_loss = 0
             for (s, a, r, s_prime, done_mask, _) in data_loader:
-                delta = r + config.gamma * self._agent.value(s_prime).detach() * done_mask - self._agent.value(s)
+                delta = r + config.gamma * self._agent.value(s_prime).detach() - self._agent.value(s)
                 v_loss = 0.5 * (delta ** 2).mean()
                 assert torch.isfinite(v_loss)
                 self.value_opt.zero_grad()
                 v_loss.backward()
                 self.value_opt.step()
                 total_loss += v_loss
-        return {"train/v_loss": total_loss}
+        return {"train/v_loss": total_loss / len(data_loader)}
 
 
 class PPO(PG):
