@@ -5,7 +5,7 @@ import torch
 
 RUN_SWEEP = 1
 REMOTE = 1
-NUM_PROCS = 20
+NUM_PROCS = 10
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
@@ -23,7 +23,7 @@ eta = 0.1
 grid_size = 8
 agent = "ppo"
 save_interval = 10
-max_steps = int(5e5)
+max_steps = int(300)
 seed = 984
 h_dim = 32
 # wandb_mode = "online" if DEBUG else "offline"

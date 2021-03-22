@@ -68,7 +68,7 @@ class PG:
         with torch.no_grad():
             probs_old = self._agent.policy(s)
         dataset = torch_data.TensorDataset(*(s, a, r, s_prime, done_mask, probs_old))
-        data_loader = torch_data.DataLoader(dataset, batch_size=config.batch_size)
+        data_loader = torch_data.DataLoader(dataset, batch_size=config.batch_size, shuffle=Truek)
 
         td_stats = self._train_value(data_loader)
 
@@ -81,7 +81,8 @@ class PG:
             total_loss = 0
             total_kl = 0
             total_entropy = 0
-            for (s, a, r, s_prime, done_mask, probs_old) in data_loader:
+            lr = config.pi_lr
+            for t, (s, a, r, s_prime, done_mask, probs_old) in enumerate(data_loader):
                 with torch.no_grad():
                     delta = r + config.gamma * self._agent.value(s_prime).detach() - self._agent.value(s)
                 pi_old = torch.distributions.Categorical(probs=probs_old)
@@ -99,7 +100,7 @@ class PG:
                 grad_norm = get_grad_norm(self._agent.pi.parameters())
                 assert torch.isfinite(grad_norm)
                 self.pi_opt.step()
-
+                self.pi_opt.param_groups[0]["lr"] = lr / (t + 1)
         return {
             "train/kl": total_kl / len(data_loader),
             "train/pi_loss": total_loss / len(data_loader),
