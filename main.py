@@ -29,9 +29,11 @@ def main():
     env.seed(config.seed)
     env = MiniGridWrapper(env)
     if config.agent == "pg":
-        agent = PG(action_space=env.action_space.n, observation_space=env.observation_space.shape[0], h_dim=config.h_dim)
+        agent = PG(action_space=env.action_space.n, observation_space=env.observation_space.shape[0],
+                   h_dim=config.h_dim)
     else:
-        agent = PPO(action_space=env.action_space.n, observation_space=env.observation_space.shape[0], h_dim=config.h_dim)
+        agent = PPO(action_space=env.action_space.n, observation_space=env.observation_space.shape[0],
+                    h_dim=config.h_dim)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
     for global_step in itertools.count():
@@ -45,7 +47,7 @@ def main():
             path = config.tb.add_object("agent", agent.get_model(), global_step=0)
             eval_info = eval_policy(path, config.eval_runs)
             for k, v in eval_info.items():
-                config.tb.add_scalar(k, v, global_step=global_step)
+                config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
     env.close()
 
 

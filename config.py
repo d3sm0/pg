@@ -3,8 +3,8 @@ import sys
 import experiment_buddy
 import torch
 
-RUN_SWEEP = 0
-REMOTE = 0
+RUN_SWEEP = 1
+REMOTE = 1
 NUM_PROCS = 20
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
@@ -19,10 +19,10 @@ eps_clip = 0.1
 opt_epochs = 10
 horizon = 256 if DEBUG else 2048
 batch_size = 32
-eta = 0.00
+eta = 0.1
 grid_size = 8
-agent = "pg"
-save_interval = 100
+agent = "ppo"
+save_interval = 10
 max_steps = int(5e5)
 seed = 984
 h_dim = 32
