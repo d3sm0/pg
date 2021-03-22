@@ -7,12 +7,6 @@ from torch.utils import data as torch_data
 import config
 
 
-# def debug_grad(m, i, o):
-#    print(m)
-#    print(i)
-#    print(o)
-#
-
 def init_weights(m):
     if type(m) == nn.Linear:
         torch.nn.init.orthogonal_(m.weight)
@@ -49,7 +43,7 @@ class PG:
     def __init__(self, observation_space, action_space, h_dim):
         self._agent = ActorCritic(observation_space, action_space, h_dim)
         self.pi_opt = optim.SGD(self._agent.pi.parameters(), lr=config.pi_lr)
-        self.value_opt = optim.SGD(self._agent.v.parameters(), lr=config.v_lr)
+        self.value_opt = optim.Adam(self._agent.v.parameters(), lr=config.v_lr)
         self.data = []
 
     def get_model(self):
@@ -110,6 +104,7 @@ class PG:
             "train/kl": total_kl / len(data_loader),
             "train/pi_loss": total_loss / len(data_loader),
             "train/entropy": total_entropy / len(data_loader),
+            "train/grad_norm": grad_norm
         }
 
     def _train_value(self, data_loader):
@@ -143,21 +138,19 @@ class PPO(PG):
                 kl = torch.distributions.kl_divergence(pi_old, pi)
                 assert kl.isfinite().all()
                 loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a)) * delta + config.eta * kl
-                # surr1 = ratio * delta
-                # surr2 = torch.clamp(ratio, 1 - config.eps_clip, 1 + config.eps_clip) * delta
-                # loss = -torch.min(surr1, surr2).mean()
                 total_loss += loss.mean()
                 total_kl += kl.mean()
                 total_entropy += pi.entropy().mean()
 
-            self.pi_opt.zero_grad()
-            total_loss.backward()
-            grad_norm = get_grad_norm(self._agent.pi.parameters())
-            assert torch.isfinite(grad_norm)
-            self.pi_opt.step()
+                self.pi_opt.zero_grad()
+                loss.backward()
+                grad_norm = get_grad_norm(self._agent.pi.parameters())
+                assert torch.isfinite(grad_norm)
+                self.pi_opt.step()
 
         return {
-            "train/kl": total_kl,
-            "train/pi_loss": total_loss,
-            "train/entropy": total_entropy,
+            "train/kl": total_kl / len(data_loader),
+            "train/pi_loss": total_loss / len(data_loader),
+            "train/entropy": total_entropy / len(data_loader),
+            "train/grad_norm": grad_norm
         }

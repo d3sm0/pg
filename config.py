@@ -3,8 +3,8 @@ import sys
 import experiment_buddy
 import torch
 
-RUN_SWEEP = 0
-REMOTE = 0
+RUN_SWEEP = 1
+REMOTE = 1
 NUM_PROCS = 20
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
