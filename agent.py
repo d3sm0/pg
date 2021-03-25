@@ -138,7 +138,12 @@ class PPO(PG):
                 pi = torch.distributions.Categorical(probs=self._agent.policy(s))
                 kl = torch.distributions.kl_divergence(pi_old, pi)
                 assert kl.isfinite().all()
-                loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a)) * delta + config.eta * kl
+
+                ratio = torch.exp(pi.log_prob(a) - pi_old.log_prob(a))
+                l1 = ratio * delta
+                l2 = torch.clamp(ratio, config.eta, 1 - config.eta) * delta
+                loss = torch.min(l1, l2)
+
                 total_loss += loss.mean()
                 total_kl += kl.mean()
                 total_entropy += pi.entropy().mean()
