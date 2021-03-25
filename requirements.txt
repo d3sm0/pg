@@ -4,5 +4,5 @@ gym
 wandb
 gym-minigrid
 torch
-git+git://github.com/ministry-of-silly-code/experiment_buddy.git#egg=experiment_buddy
+git+git://github.com/ministry-of-silly-code/experiment_buddy.git@313394bc80fd5b292c9c617076f076ceb4caa595
 tqdm
