@@ -3,9 +3,9 @@ import sys
 import experiment_buddy
 import torch
 
-RUN_SWEEP = 1
-REMOTE = 1
-NUM_PROCS = 10
+RUN_SWEEP = 0
+REMOTE = 0
+NUM_PROCS = 5
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
