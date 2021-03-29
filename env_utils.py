@@ -5,15 +5,17 @@ import numpy as np
 class MiniGridWrapper(gym.Wrapper):
     def __init__(self, env):
         super(MiniGridWrapper, self).__init__(env)
-        # self.action_space = gym.spaces.Discrete(n=3)
+        self.action_space = gym.spaces.Discrete(n=3)
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
-            shape=(2 * env.unwrapped.width + 4,),
+            shape=(1,),  # * env.unwrapped.width + 4,),
             dtype=np.float32
         )
         self.t = None
         self.max_steps = 200
+        self._state_to_idx, self._idx_to_state = enumerate_state_space(env)
+        self.n_states = len(self._state_to_idx.keys())
         self.reset()
 
     def step(self, action):
@@ -45,14 +47,21 @@ class MiniGridWrapper(gym.Wrapper):
     def observation(self):
         x, y = self.env.agent_pos
         z = self.env.agent_dir
-        _z = np.zeros(shape=(4,))
-        _z[z] = 1
-        _x = np.zeros(shape=self.env.grid.width)
-        _y = np.zeros(shape=self.env.grid.width)
-        _x[x] = 1
-        _y[y] = 1
-        _obs = np.concatenate([_x, _y, _z])
-        return _obs
+        obs = self._state_to_idx[(x, y, z)]
+        return np.ones((1,)) * obs
 
     def get_state(self):
         return self.observation()
+
+
+def enumerate_state_space(env):
+    state_dict = {}
+    n_states = 0
+    n_to_state = {}
+    for w in range(env.unwrapped.width):
+        for h in range(env.unwrapped.width):
+            for d in range(4):
+                state_dict[(w, h, d)] = n_states
+                n_to_state[n_states] = (d, w, h)
+                n_states += 1
+    return state_dict, n_to_state

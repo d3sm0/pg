@@ -4,7 +4,7 @@ import torch
 from gym_minigrid.envs import EmptyEnv
 
 import config
-from agent import PG, PPO
+from agent import PG
 from env_utils import MiniGridWrapper
 from eval_policy import eval_policy
 
@@ -12,7 +12,8 @@ from eval_policy import eval_policy
 def gather_trajectory(env, model, horizon):
     s = env.get_state()
     info = {}
-    for t in range(horizon):
+    done = False
+    while not done:
         action = model.act(s)
         s_prime, r, done, info = env.step(action)
         model.put_data((s, action, r, s_prime, 1 - done))
@@ -28,12 +29,8 @@ def main():
     print(config.agent)
     env.seed(config.seed)
     env = MiniGridWrapper(env)
-    if config.agent == "pg":
-        agent = PG(action_space=env.action_space.n, observation_space=env.observation_space.shape[0],
-                   h_dim=config.h_dim)
-    else:
-        agent = PPO(action_space=env.action_space.n, observation_space=env.observation_space.shape[0],
-                    h_dim=config.h_dim)
+    agent = PG(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
+    plot_value(agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
     for global_step in itertools.count():
@@ -45,10 +42,22 @@ def main():
             config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
         if global_step % config.save_interval == 0:
             path = config.tb.add_object("agent", agent.get_model(), global_step=0)
-            eval_info = eval_policy(path, config.eval_runs)
+            eval_info = eval_policy(path, config.eval_runs, record_episode=False)
             for k, v in eval_info.items():
                 config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
+            plot_value(agent, global_step)
     env.close()
+
+
+def plot_value(agent, global_step):
+    value = agent._agent.v.reshape((4, config.grid_size, config.grid_size)).max(0)[0]
+    q_value = agent._agent.q.reshape((4, config.grid_size, config.grid_size, 3)).max(-1)[0].max(0)[0]
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 2)
+    ax[0].imshow(value)
+    ax[1].imshow(q_value)
+    config.tb.add_figure("value", fig, global_step)
 
 
 if __name__ == '__main__':

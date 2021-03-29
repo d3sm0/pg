@@ -13,8 +13,8 @@ def generate_episode(env, policy):
     info = {}
     while not d:
         with torch.no_grad():
-            logits = policy.policy(torch.from_numpy(s).float())
-        pi = Categorical(logits=logits)
+            probs = policy.policy(torch.from_numpy(s).long())
+        pi = Categorical(probs=probs)
         action = pi.sample().item()
         s1, r, d, info = env.step(action)
         # env.render()
@@ -23,14 +23,15 @@ def generate_episode(env, policy):
     return info
 
 
-def eval_policy(log_dir, eval_runs=1):
+def eval_policy(log_dir, eval_runs=1, record_episode=False):
     from env_utils import MiniGridWrapper
     # env = FourRoomsEnv(goal_pos=(12, 16))
     env = EmptyEnv()
     env = MiniGridWrapper(env)
     policy = torch.load(log_dir)
     agg_info = collections.defaultdict(lambda: 0)
-    # env = monitor.Monitor(env, os.path.dirname(log_dir), force=True)
+    if record_episode:
+        env = monitor.Monitor(env, os.path.dirname(log_dir), force=True)
     for _ in range(eval_runs):
         info = generate_episode(env, policy)
         for k in info.keys():
@@ -42,5 +43,7 @@ def eval_policy(log_dir, eval_runs=1):
 
 
 if __name__ == '__main__':
-    log_dir = "runs/objects/test_Mar19_12-05-01/agent-100.pt"
-    eval_policy(log_dir)
+    # log_dir = "runs/objects/no_id_Mar29_23-41-20/agent-0.pt"
+    log_dir = "runs/objects/no_id_Mar29_23-46-06/agent-0.pt"
+    # log_dir = "runs/objects/no_id_Mar29_23-13-03/agent-3470.pt"
+    eval_policy(log_dir, record_episode=True)
