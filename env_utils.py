@@ -47,7 +47,7 @@ class MiniGridWrapper(gym.Wrapper):
     def observation(self):
         x, y = self.env.agent_pos
         z = self.env.agent_dir
-        obs = self._state_to_idx[(x, y, z)]
+        obs = self._state_to_idx[(z, x, y)]
         return np.ones((1,)) * obs
 
     def get_state(self):
@@ -61,7 +61,7 @@ def enumerate_state_space(env):
     for w in range(env.unwrapped.width):
         for h in range(env.unwrapped.width):
             for d in range(4):
-                state_dict[(w, h, d)] = n_states
+                state_dict[(d, w, h)] = n_states
                 n_to_state[n_states] = (d, w, h)
                 n_states += 1
     return state_dict, n_to_state
