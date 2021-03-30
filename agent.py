@@ -81,8 +81,11 @@ class PG:
         a = a.long().squeeze()
         probs = self.policy(s)
         adv = (probs * self._agent.q_value(s)).sum(dim=1) - self._agent.value(s)
-        new_pi = self._agent.pi[s, a] * torch.exp(- config.eta * adv)
+        new_pi = self._agent.pi[s, a] * torch.exp(-config.eta * adv)
         self._agent.pi[s, a] = new_pi
+
+        self._agent.pi = self._agent.pi - self._agent.pi.max(1, keepdims=True)[0]
+
         kl = (probs - self.policy(s)).norm(1)
         return {"adv": adv.mean(), "kl": kl.mean()}
 
