@@ -4,11 +4,15 @@ metric:
   name: return
   goal: maximize
 parameters:
-  ^learning_rate:
+  learning_rate:
     distribution: uniform
-    min: 0.0001
-    max: 0.001
-  ^eta:
+    min: 0.01
+    max: 1.0
+  eta:
     distribution: uniform
     min: 0.0001
     max: 0.1
+  opt_epochs:
+    distribution: q_uniform
+    min: 10
+    max: 20

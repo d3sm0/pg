@@ -5,7 +5,8 @@ from gym_minigrid.envs import EmptyEnv
 
 import config
 from agent import PG, PPO
-from env_utils import MiniGridWrapper
+from chain_mdp import MDP
+from env_utils import MiniGridWrapper, StatisticsWrapper
 from eval_policy import eval_policy
 
 
@@ -24,16 +25,17 @@ def gather_trajectory(env, model, horizon):
 
 
 def main():
-    env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
-    torch.manual_seed(config.seed)
-    print(config.agent)
-    env.seed(config.seed)
-    env = MiniGridWrapper(env)
+    # env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    # torch.manual_seed(config.seed)
+    # print(config.agent)
+    # env.seed(config.seed)
+    env = MDP()
+    env = StatisticsWrapper(env)
     if config.agent == "pg":
         agent = PG(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
     else:
         agent = PPO(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
-    plot_value(env, agent, global_step=0)
+    # plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
     for global_step in itertools.count():
@@ -49,8 +51,11 @@ def main():
             eval_info = eval_policy(path, config.eval_runs, record_episode=False)
             for k, v in eval_info.items():
                 config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
-            plot_value(env, agent, global_step * config.horizon)
+            # plot_value(env, agent, global_step * config.horizon)
+        if global_step > config.max_steps:
+            break
     env.close()
+    config.tb.run.finish()
 
 
 def plot_value(env, agent, global_step):
@@ -83,6 +88,7 @@ def plot_value(env, agent, global_step):
     ax = plt.imshow(pi)
     config.tb.add_figure("plots/pi", fig, global_step)
     plt.close()
+
 
 if __name__ == '__main__':
     main()

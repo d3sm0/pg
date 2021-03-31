@@ -2,6 +2,34 @@ import gym
 import numpy as np
 
 
+class StatisticsWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super(StatisticsWrapper, self).__init__(env)
+        self.t = None
+        self.max_steps = 200
+        self.reset()
+
+    def step(self, action):
+        s, r, d, info = super(StatisticsWrapper, self).step(action)
+        self.t += 1
+        self.returns += r
+        info = {"env/reward": r,
+                "env/avg_reward": self.returns / (self.t + 1),
+                "env/returns": self.returns,
+                "env/steps": self.t}
+        if self.t >= self.max_steps:
+            d = True
+        return s, r, d, info
+
+    def reset(self):
+        self.t = 0
+        self.returns = 0
+        return super().reset()
+
+    def get_state(self):
+        return self.unwrapped.get_state()
+
+
 class MiniGridWrapper(gym.Wrapper):
     def __init__(self, env):
         super(MiniGridWrapper, self).__init__(env)
@@ -12,8 +40,6 @@ class MiniGridWrapper(gym.Wrapper):
             shape=(1,),  # * env.unwrapped.width + 4,),
             dtype=np.float32
         )
-        self.t = None
-        self.max_steps = 200
         self._state_to_idx, self._idx_to_state = enumerate_state_space(env)
         self.n_states = len(self._state_to_idx.keys())
         self.reset()
@@ -22,14 +48,6 @@ class MiniGridWrapper(gym.Wrapper):
         s1, _, d, info = super(MiniGridWrapper, self).step(action)
         r = self.reward()
         s1 = self.observation()
-        self.t += 1
-        self.returns += r
-        info = {"env/reward": r,
-                "env/avg_reward": self.returns / (self.t + 1),
-                "env/returns": self.returns,
-                "env/steps": self.t}
-        if self.t >= self.max_steps:
-            d = True
         return s1, r, d, info
 
     def reward(self):
@@ -40,8 +58,6 @@ class MiniGridWrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         s = super(MiniGridWrapper, self).reset()
-        self.t = 0
-        self.returns = 0
         return self.observation()
 
     def observation(self):

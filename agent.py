@@ -28,7 +28,7 @@ class ActorCritic(nn.Module):
 
     def policy(self, x):
         # import torch.nn.functional as F
-        x = F.one_hot(x, 256).float()
+        x = F.one_hot(x, self.v.shape[0]).float()
         x = self.pi(x)
         return x
 
@@ -119,13 +119,23 @@ class PPO(PG):
         s = s.squeeze().long()
         s_prime = s_prime.squeeze().long()
         a = a.long().squeeze()
-        pi_old = self._agent.policy(s)
-        adv = r + config.gamma * self._agent.value(s_prime) * - self._agent.value(s)
-        w = self._agent.pi.weight.data.T
-        w[s, a] = w[s, a] * torch.exp(config.eta * adv)
-        w[s, a] /= w[s].sum(1)
-        self._agent.pi.weight.data = w.T
-        kl = (pi_old - w[s]).norm(1)
+        with torch.no_grad():
+            pi_old = self._agent.policy(s)
+            pi_old = torch.distributions.Categorical(probs=pi_old)
+        adv = r + config.gamma * self._agent.value(s_prime) - self._agent.value(s)
+
+        for _ in range(config.opt_epochs):
+            self.optim.zero_grad()
+            pi = torch.distributions.Categorical(probs=self.policy(s))
+            loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi))
+            loss.mean().backward()
+            self.optim.step()
+        # w = self._agent.pi.weight.data.T
+        # w[s, a] = w[s, a] * torch.exp(config.eta * adv)
+        # w[s, a] /= w[s].sum(1)
+        # self._agent.pi.weight.data = w.T
+        # kl = (pi_old - w[s]).norm(1)
+        kl = (pi_old.probs - pi.probs).norm(1)
         return {"adv": adv.mean(), "kl": kl.mean()}
 
 
