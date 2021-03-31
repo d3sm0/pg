@@ -21,9 +21,9 @@ horizon = 10 if DEBUG else 200
 batch_size = 32
 eta = 0.1
 grid_size = 8
-agent = "ppo"
+agent = "pg"
 save_interval = 10
-max_steps = int(300)
+max_steps = int(30)
 seed = 984
 h_dim = 32
 # wandb_mode = "online" if DEBUG else "offline"
@@ -42,7 +42,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 
 RUN_SWEEP = 1
 REMOTE = 1
-NUM_PROCS = 5
+NUM_PROCS = 10
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
