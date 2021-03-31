@@ -12,14 +12,14 @@ HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
 eval_runs = 1
-pi_lr = 1e-3
+pi_lr = 1e-1
 v_lr = 1e-2
 gamma = 0.99
 eps_clip = 0.1
-opt_epochs = 10
+opt_epochs = 20
 horizon = 10 if DEBUG else 200
 batch_size = 32
-eta = 1.0
+eta = 0.1
 grid_size = 8
 agent = "ppo"
 save_interval = 10
@@ -40,8 +40,8 @@ device = torch.device("cuda" if use_cuda else "cpu")
 # #SBATCH --mem=24GB
 # """
 
-RUN_SWEEP = 0
-REMOTE = 0
+RUN_SWEEP = 1
+REMOTE = 1
 NUM_PROCS = 5
 
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
