@@ -4,7 +4,7 @@ import torch
 from gym_minigrid.envs import EmptyEnv
 
 import config
-from agent import PG
+from agent import PG, PPO
 from env_utils import MiniGridWrapper
 from eval_policy import eval_policy
 
@@ -29,7 +29,10 @@ def main():
     print(config.agent)
     env.seed(config.seed)
     env = MiniGridWrapper(env)
-    agent = PG(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
+    if config.agent == "pg":
+        agent = PG(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
+    else:
+        agent = PPO(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
     plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
@@ -37,7 +40,7 @@ def main():
         info = gather_trajectory(env, agent, config.horizon)
         config.tb.add_scalar("return", info["env/returns"], global_step=global_step * config.horizon)
         losses = agent.train()
-        config.tb.add_histogram("pi", agent._agent.pi, global_step=global_step * config.horizon)
+        config.tb.add_histogram("pi", agent._agent.pi.weight.data, global_step=global_step * config.horizon)
         agent.data.clear()
         for k, v in losses.items():
             config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
@@ -60,7 +63,7 @@ def plot_value(env, agent, global_step):
                 idx = env._state_to_idx[(z, x, y)]
                 value[z, x, y] = agent._agent.v[idx]
                 q_value[z, x, y] = agent._agent.q[idx].max()
-                pi[z, x, y] = agent._agent.pi[idx].max()
+                pi[z, x, y] = agent._agent.pi.weight.data[:, idx].max()
 
     value = value.max(0)[0]
     q_value = q_value.max(0)[0]
@@ -79,7 +82,7 @@ def plot_value(env, agent, global_step):
     fig = plt.figure()
     ax = plt.imshow(pi)
     config.tb.add_figure("plots/pi", fig, global_step)
-
+    plt.close()
 
 if __name__ == '__main__':
     main()
