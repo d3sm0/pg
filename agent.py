@@ -14,7 +14,8 @@ def init_weights(m):
     if type(m) == nn.Linear:
         m.weight.data = torch.exp(m.weight) / torch.exp(m.weight).sum(0, keepdim=True)
         assert torch.allclose(m.weight.data.sum(0), torch.tensor(1.))
-        # torch.nn.init.orthogonal_(m.weight)
+        m.bias.data = torch.ones_like(m.bias.data)
+        m.bias.data /= m.bias.data.sum()
 
 
 class ActorCritic(nn.Module):
@@ -23,21 +24,18 @@ class ActorCritic(nn.Module):
 
         self.v = torch.rand(observation_space)
         self.q = torch.rand((observation_space, action_space))
-        self.pi = nn.Linear(observation_space, action_space, bias=False)
-        self.pi.apply(init_weights)
+        pi = torch.ones((action_space,))
+        pi = F.softmax(pi, 0)
+        self.pi = nn.Parameter(pi)
+        # self.pi = nn.Linear(observation_space, action_space, bias=True)
 
     def policy(self, x):
         # import torch.nn.functional as F
-        x = F.one_hot(x, self.v.shape[0]).float()
-        x = self.pi(x)
-        return x
+        # x = F.one_hot(x, self.v.shape[0]).float()
+        return self.pi
 
     def value(self, x):
         v = self.v[x]
-        return v
-
-    def q_value(self, x):
-        v = self.q[x]
         return v
 
 
@@ -49,7 +47,7 @@ class PG:
     def __init__(self, observation_space, action_space, h_dim):
         self._agent = ActorCritic(observation_space, action_space, h_dim)
         self.data = []
-        self.optim = torch.optim.SGD(params=self._agent.pi.parameters(), lr=config.pi_lr)
+        self.optim = torch.optim.SGD(params=self._agent.parameters(), lr=config.pi_lr)
 
     def get_model(self):
         return self._agent
@@ -102,15 +100,10 @@ class PG:
     def _train_value(self, s, a, r, s_prime, done):
         s_prime = s_prime.squeeze().long()
         s = s.squeeze().long()
-        with torch.no_grad():
-            pi = self.policy(s_prime)
-        a = a.long()
-        q_td = r + config.gamma * (pi * self._agent.q_value(s_prime)).sum(dim=-1) - self._agent.q[s, a]
-        self._agent.q[s, a] += config.v_lr * (q_td)
         td = r + config.gamma * self._agent.value(s_prime) - self._agent.v[s]
         self._agent.v[s] += config.v_lr * td
 
-        return {"q_td": q_td.mean(), "td": td.mean()}
+        return {"td": td.mean()}
 
 
 class PPO(PG):
@@ -120,22 +113,23 @@ class PPO(PG):
         s_prime = s_prime.squeeze().long()
         a = a.long().squeeze()
         with torch.no_grad():
-            pi_old = self._agent.policy(s)
+            pi_old = self.policy(s)
             pi_old = torch.distributions.Categorical(probs=pi_old)
         adv = r + config.gamma * self._agent.value(s_prime) - self._agent.value(s)
 
-        for _ in range(config.opt_epochs):
-            self.optim.zero_grad()
-            pi = torch.distributions.Categorical(probs=self.policy(s))
-            loss = - torch.exp(pi.log_prob(a) - pi_old.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi))
-            loss.mean().backward()
-            self.optim.step()
-        # w = self._agent.pi.weight.data.T
-        # w[s, a] = w[s, a] * torch.exp(config.eta * adv)
-        # w[s, a] /= w[s].sum(1)
-        # self._agent.pi.weight.data = w.T
-        # kl = (pi_old - w[s]).norm(1)
-        kl = (pi_old.probs - pi.probs).norm(1)
+        #for _ in range(config.opt_epochs):
+        #    self.optim.zero_grad()
+        #    pi = torch.distributions.Categorical(probs=self.policy(s))
+        #    loss = - torch.exp(
+        #        pi.log_prob(a) - pi_old.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi))
+        #    loss.mean().backward()
+        #    self.optim.step()
+        w = self._agent.pi.data
+        w[a] = w[a] + config.eta * adv  ## w[a] * torch.exp(config.eta * adv)
+        # w[a] /= w.sum()
+        # self._agent.pi.data = w
+        kl = (pi_old.probs - torch.softmax(w, 0)).norm(1)
+        # kl = (pi_old.probs - pi.probs).norm(1)
         return {"adv": adv.mean(), "kl": kl.mean()}
 
 

@@ -27,7 +27,7 @@ class StatisticsWrapper(gym.Wrapper):
         return super().reset()
 
     def get_state(self):
-        return self.unwrapped.get_state()
+        return self.env.get_state()
 
 
 class MiniGridWrapper(gym.Wrapper):
