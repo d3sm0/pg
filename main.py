@@ -5,7 +5,7 @@ from gym_minigrid.envs import EmptyEnv
 
 import config
 from agent import PG, PPO
-from chain_mdp import MDP
+# from chain_mdp import MDP
 from env_utils import MiniGridWrapper, StatisticsWrapper
 from eval_policy import eval_policy
 
@@ -25,16 +25,17 @@ def gather_trajectory(env, model, horizon):
 
 
 def main():
-    # env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
-    # torch.manual_seed(config.seed)
-    # print(config.agent)
-    # env.seed(config.seed)
-    env = MDP()
+    env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    torch.manual_seed(config.seed)
+    print(config.agent)
+    env.seed(config.seed)
+    # env = MDP()
+    env = MiniGridWrapper(env)
     env = StatisticsWrapper(env)
     if config.agent == "pg":
-        agent = PG(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
+        agent = PG(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
     else:
-        agent = PPO(action_space=env.action_space.n, observation_space=env.n_states, h_dim=config.h_dim)
+        agent = PPO(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
     # plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
@@ -42,7 +43,7 @@ def main():
         info = gather_trajectory(env, agent, config.horizon)
         config.tb.add_scalar("return", info["env/returns"], global_step=global_step * config.horizon)
         losses = agent.train()
-        config.tb.add_histogram("pi", agent._agent.pi.weight.data, global_step=global_step * config.horizon)
+        config.tb.add_histogram("pi", agent._agent.pi.data, global_step=global_step * config.horizon)
         agent.data.clear()
         for k, v in losses.items():
             config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
