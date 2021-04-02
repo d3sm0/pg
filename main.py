@@ -27,7 +27,6 @@ def gather_trajectory(env, model, horizon):
 def main():
     env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
     torch.manual_seed(config.seed)
-    print(config.agent)
     env.seed(config.seed)
     # env = MDP()
     env = MiniGridWrapper(env)

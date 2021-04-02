@@ -125,7 +125,8 @@ class PPO(PG):
         #    loss.mean().backward()
         #    self.optim.step()
         w = self._agent.pi.data
-        w[a] = w[a] + config.eta * adv  ## w[a] * torch.exp(config.eta * adv)
+        w[a] = w[a] + config.eta * adv
+        # w[a] * torch.exp(config.eta * adv)
         # w[a] /= w.sum()
         # self._agent.pi.data = w
         kl = (pi_old.probs - torch.softmax(w, 0)).norm(1)
