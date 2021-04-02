@@ -53,7 +53,7 @@ class MiniGridWrapper(gym.Wrapper):
     def reward(self):
         x, y = self.env.agent_pos
         goal_x, goal_y = self.unwrapped.grid.width - 2, self.unwrapped.grid.height - 2
-        r = - (abs(x - goal_x) + abs(y - goal_y)) / (goal_x + goal_y)
+        r = float((abs(x - goal_x) + abs(y - goal_y)) == 0)
         return r
 
     def reset(self, **kwargs):
