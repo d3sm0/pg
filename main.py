@@ -27,7 +27,6 @@ def gather_trajectory(env, model, horizon):
 def main():
     env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
     torch.manual_seed(config.seed)
-    print(config.agent)
     env.seed(config.seed)
     # env = MDP()
     env = MiniGridWrapper(env)
@@ -36,6 +35,8 @@ def main():
         agent = PG(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
     else:
         agent = PPO(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
+    print(config.agent)
+    print(config.tb.run.config)
     # plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
