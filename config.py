@@ -10,6 +10,7 @@ gamma = 0.99
 eps_clip = 0.1
 opt_epochs = 10
 horizon = 200  # if DEBUG else 200
+mdp_horizon = 10
 batch_size = 32
 eta = 0.1
 grid_size = 8

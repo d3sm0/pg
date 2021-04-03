@@ -1,4 +1,5 @@
 import itertools
+from shamdp import process_action
 
 import torch
 from gym_minigrid.envs import EmptyEnv
@@ -11,30 +12,34 @@ from eval_policy import eval_policy
 
 
 def gather_trajectory(env, model, horizon):
-    s = env.get_state()
+    state = env.reset()
     info = {}
     done = False
     while not done:
-        action = model.act(s)
+        action = model.act(state)
+        action = process_action(state, action)
         s_prime, r, done, info = env.step(action)
-        model.put_data((s, action, r, s_prime, 1 - done))
-        s = s_prime
+        model.put_data((state, action, r, s_prime, 1 - done))
+        state = s_prime
         if done:
-            s = env.reset()
+            state = env.reset()
     return info
 
 
 def main():
-    env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    from shamdp import get_shamdp
+    # env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    env = get_shamdp(horizon=config.mdp_horizon)
+
     torch.manual_seed(config.seed)
-    env.seed(config.seed)
+    # env.seed(config.seed)
     # env = MDP()
-    env = MiniGridWrapper(env)
+    # env = MiniGridWrapper(env)
     env = StatisticsWrapper(env)
     if config.agent == "pg":
-        agent = PG(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
+        agent = PG(action_space=env.action_space, observation_space=env.env.state_space, h_dim=config.h_dim)
     else:
-        agent = PPO(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
+        agent = PPO(action_space=env.action_space, observation_space=env.env.state_space, h_dim=config.h_dim)
     # plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")

@@ -22,7 +22,7 @@ class ActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, h_dim):
         super(ActorCritic, self).__init__()
 
-        self.v = torch.rand(observation_space)
+        self.v = torch.rand((observation_space, 1))
         self.q = torch.rand((observation_space, action_space))
         pi = torch.ones((action_space,))
         pi = F.softmax(pi, 0)
@@ -30,12 +30,10 @@ class ActorCritic(nn.Module):
         # self.pi = nn.Linear(observation_space, action_space, bias=True)
 
     def policy(self, x):
-        # import torch.nn.functional as F
-        # x = F.one_hot(x, self.v.shape[0]).float()
         return self.pi
 
     def value(self, x):
-        v = self.v[x]
+        v = torch.einsum("ns,sx->n", x, self.v)
         return v
 
 
@@ -79,9 +77,7 @@ class PG:
         return {**pi_stats, **td_stats}
 
     def _train_pi(self, s, a, r, s_prime, done):
-        s = s.squeeze().long()
-        a = a.long().squeeze()
-        s_prime = s_prime.long().squeeze()
+        a = a.long()
         adv = r + config.gamma * self._agent.value(s_prime) - self._agent.value(s)
         with torch.no_grad():
             probs = self.policy(s)
@@ -98,10 +94,9 @@ class PG:
         return {"adv": adv.mean(), "kl": kl.mean()}
 
     def _train_value(self, s, a, r, s_prime, done):
-        s_prime = s_prime.squeeze().long()
-        s = s.squeeze().long()
-        td = r + config.gamma * self._agent.value(s_prime) - self._agent.v[s]
-        self._agent.v[s] += config.v_lr * td
+        td = r + config.gamma * self._agent.value(s_prime) - self._agent.value(s)
+        s = s.argmax(-1)
+        self._agent.v[s] += config.v_lr * td.unsqueeze(1)
 
         return {"td": td.mean()}
 
@@ -117,7 +112,7 @@ class PPO(PG):
             pi_old = torch.distributions.Categorical(probs=pi_old)
         adv = r + config.gamma * self._agent.value(s_prime) - self._agent.value(s)
 
-        #for _ in range(config.opt_epochs):
+        # for _ in range(config.opt_epochs):
         #    self.optim.zero_grad()
         #    pi = torch.distributions.Categorical(probs=self.policy(s))
         #    loss = - torch.exp(
