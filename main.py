@@ -28,7 +28,7 @@ def gather_trajectory(env, model, horizon):
 
 def main():
     from shamdp import get_shamdp
-    # env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    #env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
     env = get_shamdp(horizon=config.mdp_horizon)
 
     torch.manual_seed(config.seed)
