@@ -104,8 +104,6 @@ class PG:
 class PPO(PG):
 
     def _train_pi(self, s, a, r, s_prime, done):
-        s = s.squeeze().long()
-        s_prime = s_prime.squeeze().long()
         a = a.long().squeeze()
         with torch.no_grad():
             pi_old = self.policy(s)
