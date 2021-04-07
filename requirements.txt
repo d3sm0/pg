@@ -6,3 +6,4 @@ gym-minigrid
 torch
 git+git://github.com/ministry-of-silly-code/experiment_buddy.git
 tqdm
+git+git://github.com/zafarali/emdp.git

@@ -22,8 +22,8 @@ class ActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, h_dim):
         super(ActorCritic, self).__init__()
 
-        self.v = torch.rand((observation_space, 1))
-        self.q = torch.rand((observation_space, action_space))
+        self.v = torch.zeros((observation_space, 1))
+        self.q = torch.zeros((observation_space, action_space))
         pi = torch.ones((action_space,))
         pi = F.softmax(pi, 0)
         self.pi = nn.Parameter(pi)

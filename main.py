@@ -59,7 +59,7 @@ def main():
             # plot_value(env, agent, global_step * config.horizon)
         if global_step > config.max_steps:
             break
-    env.close()
+    #env.close()
     config.tb.run.finish()
 
 
