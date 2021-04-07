@@ -28,18 +28,18 @@ def gather_trajectory(env, model, horizon):
 
 def main():
     from shamdp import get_shamdp
-    #env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
-    env = get_shamdp(horizon=config.mdp_horizon)
+    env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
+    #env = get_shamdp(horizon=config.mdp_horizon)
 
     torch.manual_seed(config.seed)
     # env.seed(config.seed)
     # env = MDP()
-    # env = MiniGridWrapper(env)
+    env = MiniGridWrapper(env)
     env = StatisticsWrapper(env)
     if config.agent == "pg":
-        agent = PG(action_space=env.action_space, observation_space=env.env.state_space, h_dim=config.h_dim)
+        agent = PG(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
     else:
-        agent = PPO(action_space=env.action_space, observation_space=env.env.state_space, h_dim=config.h_dim)
+        agent = PPO(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
     # plot_value(env, agent, global_step=0)
 
     # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
@@ -56,7 +56,7 @@ def main():
             eval_info = eval_policy(path, config.eval_runs, record_episode=False)
             for k, v in eval_info.items():
                 config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
-            # plot_value(env, agent, global_step * config.horizon)
+            plot_value(env, agent, global_step * config.horizon)
         if global_step > config.max_steps:
             break
     #env.close()
@@ -70,10 +70,10 @@ def plot_value(env, agent, global_step):
     for z in range(4):
         for x in range(config.grid_size):
             for y in range(config.grid_size):
-                idx = env._state_to_idx[(z, x, y)]
+                idx = env.env._state_to_idx[(z, x, y)]
                 value[z, x, y] = agent._agent.v[idx]
                 q_value[z, x, y] = agent._agent.q[idx].max()
-                pi[z, x, y] = agent._agent.pi.weight.data[:, idx].max()
+                pi[z, x, y] = agent._agent.pi.data.argmax()
 
     value = value.max(0)[0]
     q_value = q_value.max(0)[0]

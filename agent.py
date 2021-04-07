@@ -83,12 +83,16 @@ class PG:
             probs = self.policy(s)
             pi_old = torch.distributions.Categorical(probs=probs)
         # self._agent.pi = self._agent.pi - self._agent.pi.max(1, keepdims=True)[0]
-        for _ in range(config.opt_epochs):
-            self.optim.zero_grad()
-            pi = torch.distributions.Categorical(probs=self.policy(s))
-            loss = - pi.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi)
-            loss.mean().backward()
-            self.optim.step()
+
+        w = self._agent.pi.data
+        w[a] = w[a] + 1 + config.eta * adv
+
+        # for _ in range(config.opt_epochs):
+        #    self.optim.zero_grad()
+        #    pi = torch.distributions.Categorical(probs=self.policy(s))
+        #    loss = - pi.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi)
+        #    loss.mean().backward()
+        #    self.optim.step()
 
         kl = (probs - self.policy(s)).norm(1)
         return {"adv": adv.mean(), "kl": kl.mean()}
@@ -117,11 +121,12 @@ class PPO(PG):
         #        pi.log_prob(a) - pi_old.log_prob(a) * adv + config.eta * torch.distributions.kl_divergence(pi_old, pi))
         #    loss.mean().backward()
         #    self.optim.step()
-        w = self._agent.pi.data
-        w[a] = w[a] + config.eta * adv
         # w[a] * torch.exp(config.eta * adv)
         # w[a] /= w.sum()
         # self._agent.pi.data = w
+
+        w = self._agent.pi.data
+        w[a] = w[a] + config.eta * adv
         kl = (pi_old.probs - torch.softmax(w, 0)).norm(1)
         # kl = (pi_old.probs - pi.probs).norm(1)
         return {"adv": adv.mean(), "kl": kl.mean()}
