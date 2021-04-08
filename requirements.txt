@@ -1,9 +1,12 @@
-tensorboardX
-GitPython
-gym
-wandb
-gym-minigrid
-torch
+# tensorboardX
+# GitPython
+# gym
+# wandb
+# gym-minigrid
+# torch
+# tqdm
 git+git://github.com/ministry-of-silly-code/experiment_buddy.git
-tqdm
 git+git://github.com/zafarali/emdp.git
+jax
+jaxlib
+git+https://github.com/deepmind/dm-haiku

@@ -1,98 +1,120 @@
-import itertools
-from shamdp import process_action
+# exact update of every policy and parameterfs
+from random import random
+import os
+from emdp.gridworld import GridWorldPlotter
 
-import torch
-from gym_minigrid.envs import EmptyEnv
+import haiku as hk
 
+from shamdp import get_gridworld
 import config
-from agent import PG, PPO
-# from chain_mdp import MDP
-from env_utils import MiniGridWrapper, StatisticsWrapper
-from eval_policy import eval_policy
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
 
 
-def gather_trajectory(env, model, horizon):
-    state = env.reset()
-    info = {}
+def get_value(env, pi):
+    p_pi = jnp.einsum('xay,xa->xy', env.P, pi)
+    r_pi = jnp.einsum('xa,xa->x', env.R, pi)
+    v = jnp.linalg.solve((jnp.eye(env.state_space) - env.gamma * p_pi), r_pi)
+    return v
+
+
+def get_q_value(env, pi):
+    v = get_value(env, pi)
+    v_pi = jnp.einsum('xay,y->xa', env.P, v)
+    q = env.R + env.gamma * v_pi
+    return q
+
+
+def kl(p, q):
+    kl = (p * jnp.log(p / q)).sum(1).mean()
+    return kl
+
+
+def plot_grid(f, title, render=False, savefig=True, path=None):
+    fig, ax = plt.subplots(1, 1)
+    out = ax.imshow(f, interpolation=None, cmap='Blues')
+    ax.grid(True)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(title)
+    n, m = f.shape
+    for x in range(n):
+        for y in range(m):
+            ax.text(x, y, f"{f[x, y]:.2f}")
+    fig.colorbar(out, ax=ax)
+    if savefig:
+        fig.savefig(os.path.join(config.plot_path, title))
+    if render:
+        plt.show()
+    return fig
+
+
+def eval_policy(env, pi, key_gen):
+    s = env.reset()
     done = False
+    total_return = 0
+    t = 0
     while not done:
-        action = model.act(state)
-        action = process_action(state, action)
-        s_prime, r, done, info = env.step(action)
-        model.put_data((state, action, r, s_prime, 1 - done))
-        state = s_prime
-        if done:
-            state = env.reset()
-    return info
+        p = jnp.einsum("s, sa->a", s, pi)
+        action = jax.random.choice(key=next(key_gen), a=env.action_space, p=p).item()
+        s, r, done, info = env.step(action)
+        total_return += r
+        t += 1
+    return {"eval/steps": t, "eval/return": total_return}
+
+
+def pg(pi, adv, eta):
+    pi = pi * jnp.exp(1 + eta * adv)
+    pi = jax.nn.softmax(pi)
+    return pi
+
+
+def ppo(pi, adv, eta):
+    pi = pi * jnp.exp(eta * adv)
+    pi = jax.nn.softmax(pi)
+    return pi
+
+
+def policy_iteration(env, pi_fn, eta, max_iterations=10, key_gen=None):
+    pi = jnp.ones((env.state_space, env.action_space))
+    pi /= pi.sum(axis=-1, keepdims=True)
+    for global_step in range(max_iterations):
+        v = get_value(env, pi)
+        q = get_q_value(env, pi)
+        adv = q - jnp.expand_dims(v, 1)
+        pi_old = pi.copy()
+        pi = pi_fn(pi, adv, eta)
+        eval_stats = {}
+        if key_gen is not None:
+            eval_stats = eval_policy(env, pi, key_gen)
+        _kl = kl(pi, pi_old)
+        render(v, q, pi, global_step, {"pi/kl": _kl, **eval_stats})
+    return pi
+
+
+def render(v, q, pi, global_step, stats):
+    v = v.reshape((config.grid_size, config.grid_size))
+    q = q.reshape((config.grid_size, config.grid_size, 4)).max(-1)
+    pi = pi.reshape((config.grid_size, config.grid_size, 4)).max(-1)
+    v = plot_grid(v, title="v_star", path=config.plot_path)
+    config.tb.add_figure("v_star", v, global_step=global_step)
+    q_star = plot_grid(q, title=f"q_star", path=config.plot_path)
+    config.tb.add_figure("q_star", q_star, global_step=global_step)
+    pi_plot = plot_grid(pi, title=f"pi-star", path=config.plot_path)
+    config.tb.add_figure("pi_star", pi_plot, global_step=global_step)
+    for k, v in stats.items():
+        config.tb.add_scalar(k, v, global_step)
 
 
 def main():
-    from shamdp import get_shamdp
-    env = EmptyEnv(size=config.grid_size)  # FourRoomsEnv(goal_pos=(12, 16))
-    #env = get_shamdp(horizon=config.mdp_horizon)
-
-    torch.manual_seed(config.seed)
-    # env.seed(config.seed)
-    # env = MDP()
-    env = MiniGridWrapper(env)
-    env = StatisticsWrapper(env)
+    key_gen = hk.PRNGSequence(config.seed)
+    env = get_gridworld(config.grid_size)
     if config.agent == "pg":
-        agent = PG(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
+        pi_fn = pg
     else:
-        agent = PPO(action_space=env.action_space.n, observation_space=env.env.n_states, h_dim=config.h_dim)
-    # plot_value(env, agent, global_step=0)
-
-    # writer = tb.SummaryWriter(log_dir=f"logs/{dtm}_as_ppo:{config.as_ppo}")
-    for global_step in itertools.count():
-        info = gather_trajectory(env, agent, config.horizon)
-        config.tb.add_scalar("return", info["env/returns"], global_step=global_step * config.horizon)
-        losses = agent.train()
-        config.tb.add_histogram("pi", agent._agent.pi.data, global_step=global_step * config.horizon)
-        agent.data.clear()
-        for k, v in losses.items():
-            config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
-        if global_step % config.save_interval == 0:
-            path = config.tb.add_object("agent", agent, global_step=0)
-            eval_info = eval_policy(path, config.eval_runs, record_episode=False)
-            for k, v in eval_info.items():
-                config.tb.add_scalar(k, v, global_step=global_step * config.horizon)
-            plot_value(env, agent, global_step * config.horizon)
-        if global_step > config.max_steps:
-            break
-    #env.close()
-    config.tb.run.finish()
-
-
-def plot_value(env, agent, global_step):
-    value = torch.zeros(4, config.grid_size, config.grid_size)
-    q_value = torch.zeros(4, config.grid_size, config.grid_size)
-    pi = torch.zeros(4, config.grid_size, config.grid_size)
-    for z in range(4):
-        for x in range(config.grid_size):
-            for y in range(config.grid_size):
-                idx = env.env._state_to_idx[(z, x, y)]
-                value[z, x, y] = agent._agent.v[idx]
-                q_value[z, x, y] = agent._agent.q[idx].max()
-                pi[z, x, y] = agent._agent.pi.data.argmax()
-
-    value = value.max(0)[0]
-    q_value = q_value.max(0)[0]
-    pi = pi.max(0)[0]
-    # q_value = agent._agent.q.reshape((4, config.grid_size, config.grid_size, 3)).max(-1)[0].max(0)[0]
-
-    import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots(1, 3)
-    # fig = plt.figure()
-    fig = plt.figure()
-    ax = plt.imshow(value)
-    config.tb.add_figure("plots/value", fig, global_step)
-    fig = plt.figure()
-    ax = plt.imshow(q_value)
-    config.tb.add_figure("plots/q_value", fig, global_step)
-    fig = plt.figure()
-    ax = plt.imshow(pi)
-    config.tb.add_figure("plots/pi", fig, global_step)
-    plt.close()
+        pi_fn = ppo
+    pi_star = policy_iteration(env, pi_fn=pi_fn, eta=config.eta, key_gen=key_gen)
 
 
 if __name__ == '__main__':
