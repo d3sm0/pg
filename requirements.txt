@@ -6,7 +6,7 @@
 # torch
 # tqdm
 git+git://github.com/ministry-of-silly-code/experiment_buddy.git
-git+git://github.com/zafarali/emdp.git
+git+git://github.com/d3sm0/emdp.git
 jax
 jaxlib
 git+https://github.com/deepmind/dm-haiku
