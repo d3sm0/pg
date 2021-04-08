@@ -1,6 +1,6 @@
 # tensorboardX
 # GitPython
-# gym
+gym
 # wandb
 # gym-minigrid
 # torch

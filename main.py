@@ -1,7 +1,5 @@
 # exact update of every policy and parameterfs
-from random import random
 import os
-from emdp.gridworld import GridWorldPlotter
 
 import haiku as hk
 
@@ -19,6 +17,13 @@ def get_value(env, pi):
     return v
 
 
+def get_dpi(env, pi):
+    p_pi = jnp.einsum('xay,xa->xy', env.P, pi)
+    d_pi = jnp.linalg.inv((jnp.eye(env.state_space) - env.gamma * p_pi)) * (1 - config.gamma)
+    d_pi /= d_pi.sum(1, keepdims=True)
+    return d_pi
+
+
 def get_q_value(env, pi):
     v = get_value(env, pi)
     v_pi = jnp.einsum('xay,y->xa', env.P, v)
@@ -26,12 +31,14 @@ def get_q_value(env, pi):
     return q
 
 
-def kl(p, q):
-    kl = (p * jnp.log(p / q)).sum(1).mean()
+def kl(p, q, reduce="mean"):
+    kl = (p * jnp.log(p / q)).sum(1)
+    if reduce == "mean":
+        kl = kl.mean()
     return kl
 
 
-def plot_grid(f, title, render=False, savefig=True, path=None):
+def plot_grid(f, title, render=False, savefig=True):
     fig, ax = plt.subplots(1, 1)
     out = ax.imshow(f, interpolation=None, cmap='Blues')
     ax.grid(True)
@@ -76,6 +83,20 @@ def ppo(pi, adv, eta):
     return pi
 
 
+def pg_loss(pi, pi_old, d_pi, adv):
+    _kl = config.eta * kl(pi_old, pi, reduce="")
+    pi_grad = (pi_old * jnp.log(pi) * adv).sum(1)
+    loss = (d_pi * (pi_grad - _kl)).sum(1)
+    return loss
+
+
+def ppo_loss(pi, pi_old, d_pi, adv):
+    _kl = config.eta * kl(pi_old, pi, reduce="")
+    pi_grad = (pi / pi_old * adv).sum(1)
+    loss = (d_pi * (pi_grad - _kl)).sum(1)
+    return loss
+
+
 def policy_iteration(env, pi_fn, eta, max_iterations=10, key_gen=None):
     pi = jnp.ones((env.state_space, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
@@ -97,11 +118,11 @@ def render(v, q, pi, global_step, stats):
     v = v.reshape((config.grid_size, config.grid_size))
     q = q.reshape((config.grid_size, config.grid_size, 4)).max(-1)
     pi = pi.reshape((config.grid_size, config.grid_size, 4)).max(-1)
-    v = plot_grid(v, title="v_star", path=config.plot_path)
+    v = plot_grid(v, title="v_star")
     config.tb.add_figure("v_star", v, global_step=global_step)
-    q_star = plot_grid(q, title=f"q_star", path=config.plot_path)
+    q_star = plot_grid(q, title=f"q_star")
     config.tb.add_figure("q_star", q_star, global_step=global_step)
-    pi_plot = plot_grid(pi, title=f"pi-star", path=config.plot_path)
+    pi_plot = plot_grid(pi, title=f"pi-star")
     config.tb.add_figure("pi_star", pi_plot, global_step=global_step)
     for k, v in stats.items():
         config.tb.add_scalar(k, v, global_step)
