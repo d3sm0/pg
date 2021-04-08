@@ -18,7 +18,7 @@ use_cuda = False
 experiment_buddy.register(locals())
 plot_path = "plots"
 
-REMOTE = 0
+REMOTE = 1
 RUN_SWEEP = 0
 NUM_PROCS = 5
 sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
@@ -26,4 +26,5 @@ HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
 tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, proc_num=NUM_PROCS,
-                             wandb_kwargs=dict(mode="disabled"))
+                             wandb_kwargs=dict(mode="disabled" if not REMOTE else "enabled")
+                             )
