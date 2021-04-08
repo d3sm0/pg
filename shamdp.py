@@ -77,6 +77,6 @@ def get_gridworld(grid_size):
     p0 = np.zeros(n_states)
     p0[0] = 1.
     gamma = 0.9
-    # terminal_states = [(grid_size,grid_size)]
     terminal_states = [(grid_size - 1, grid_size - 1)]
-    return gw.GridWorldMDP(P, R, gamma, p0, terminal_states, grid_size)
+    mdp = gw.GridWorldMDP(P, R, gamma, p0, terminal_states, grid_size)
+    return mdp
