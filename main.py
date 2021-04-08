@@ -102,13 +102,13 @@ def eval_policy(env, pi, key_gen):
 
 
 def pg(pi, adv, eta):
-    pi = pi * jnp.exp(1 + eta * adv)
+    pi = pi * jnp.exp(1 + eta * adv).mean((0,1))
     pi = jax.nn.softmax(pi)
     return pi
 
 
 def ppo(pi, adv, eta):
-    pi = pi * jnp.exp(eta * adv)
+    pi = pi * jnp.exp(eta * adv).mean((0,1))
     pi = jax.nn.softmax(pi)
     return pi
 
@@ -132,7 +132,7 @@ def entropy(pi):
 
 
 def policy_iteration(env, pi_fn, d_pi, eta, max_iterations=10, key_gen=None):
-    pi = jnp.ones((env.state_space, env.action_space))
+    pi = jnp.ones((1, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
     for global_step in range(max_iterations):
         v = get_value(env, pi)
