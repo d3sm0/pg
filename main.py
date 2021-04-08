@@ -31,7 +31,7 @@ def kl(p, q):
     return kl
 
 
-def plot_grid(f, title, render=False, savefig=True, path=None):
+def plot_grid(f, title, render=False, savefig=True):
     fig, ax = plt.subplots(1, 1)
     out = ax.imshow(f, interpolation=None, cmap='Blues')
     ax.grid(True)
@@ -97,11 +97,11 @@ def render(v, q, pi, global_step, stats):
     v = v.reshape((config.grid_size, config.grid_size))
     q = q.reshape((config.grid_size, config.grid_size, 4)).max(-1)
     pi = pi.reshape((config.grid_size, config.grid_size, 4)).max(-1)
-    v = plot_grid(v, title="v_star", path=config.plot_path)
+    v = plot_grid(v, title="v_star")
     config.tb.add_figure("v_star", v, global_step=global_step)
-    q_star = plot_grid(q, title=f"q_star", path=config.plot_path)
+    q_star = plot_grid(q, title=f"q_star")
     config.tb.add_figure("q_star", q_star, global_step=global_step)
-    pi_plot = plot_grid(pi, title=f"pi-star", path=config.plot_path)
+    pi_plot = plot_grid(pi, title=f"pi-star")
     config.tb.add_figure("pi_star", pi_plot, global_step=global_step)
     for k, v in stats.items():
         config.tb.add_scalar(k, v, global_step)
