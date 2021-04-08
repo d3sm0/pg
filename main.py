@@ -102,13 +102,13 @@ def eval_policy(env, pi, key_gen):
 
 
 def pg(pi, adv, eta):
-    pi = pi * jnp.exp(1 + eta * adv)
+    pi = pi * jnp.exp(1 + eta * adv).mean(0)
     pi = jax.nn.softmax(pi)
     return pi
 
 
 def ppo(pi, adv, eta):
-    pi = pi * jnp.exp(eta * adv)
+    pi = pi * jnp.exp(eta * adv).mean(0)
     pi = jax.nn.softmax(pi)
     return pi
 
@@ -120,19 +120,19 @@ def pg_loss(pi, pi_old, d_s, adv):
     return loss
 
 
-def ppo_loss(pi, pi_old, d_pi, adv):
+def ppo_loss(pi, pi_old, d_s, adv):
     _kl = config.eta * kl(pi_old, pi, reduce="")
     pi_grad = (pi / pi_old * adv).sum(1)
-    loss = (d_pi * (pi_grad - _kl)).sum(-1)
+    loss = (d_s * (pi_grad - _kl)).sum(-1)
     return loss
 
 
 def entropy(pi):
-    return - (pi * jnp.log(pi)).sum(1).mean()
+    return - (pi * jnp.log(pi)).sum(1).sum()
 
 
 def policy_iteration(env, pi_fn, d_pi, eta, max_iterations=10, key_gen=None):
-    pi = jnp.ones((env.state_space, env.action_space))
+    pi = jnp.ones((1, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
     for global_step in range(max_iterations):
         v = get_value(env, pi)
