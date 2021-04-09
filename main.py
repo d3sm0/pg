@@ -8,6 +8,28 @@ import config
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import numpy as np
+
+
+def v_iteration(env, n_iterations=100, eps=1e-5):
+    v = jnp.zeros(env.state_space)
+    for _ in range(n_iterations):
+        v_new = (env.R + jnp.einsum("xay,y->xa", env.gamma * env.P, v)).max(1)
+        if jnp.linalg.norm(v - v_new) < eps:
+            break
+        v = v_new.clone()
+    return v
+
+
+def q_iteration(env, n_iterations=100, eps=1e-5):
+    q = jnp.zeros((env.state_space, env.action_space))
+    for _ in range(n_iterations):
+        q_star = q.max(1)
+        q_new = (env.R + jnp.einsum("xay,y->xa", env.gamma * env.P, q_star))
+        if jnp.linalg.norm(q - q_new) < eps:
+            break
+        q = q_new.clone()
+    return q
 
 
 def get_value(env, pi):
@@ -19,9 +41,10 @@ def get_value(env, pi):
 
 def get_dpi(env, pi):
     p_pi = jnp.einsum('xay,xa->xy', env.P, pi)
-    d_pi = jnp.linalg.inv((jnp.eye(env.state_space) - env.gamma * p_pi)) * (1 - config.gamma)
-    d_pi = d_pi.mean(0)
-    d_pi /= d_pi.sum(-1, keepdims=True)
+    rho = np.zeros(env.state_space)
+    rho[0] = 1.
+    d_pi = jnp.linalg.solve((jnp.eye(env.state_space) - env.gamma * p_pi.T), (1 - env.gamma) * rho)
+    d_pi /= d_pi.sum()
     return d_pi
 
 
@@ -32,11 +55,9 @@ def get_q_value(env, pi):
     return q
 
 
-def kl(p, q, reduce="mean"):
-    kl = (p * jnp.log(p / q)).sum(1)
-    if reduce == "mean":
-        kl = kl.mean()
-    return kl
+def kl_fn(p, q, ds):
+    _kl = (p * jnp.log((p + 1e-4) / (q + 1e-4))).sum(1)
+    return (ds * _kl).sum(-1)
 
 
 def plot_pi(pi, title, render=False, savefig=True):
@@ -96,60 +117,118 @@ def eval_policy(env, pi, key_gen):
         p = jnp.einsum("s, sa->a", s, pi)
         action = jax.random.choice(key=next(key_gen), a=env.action_space, p=p).item()
         s, r, done, info = env.step(action)
-        total_return += r
+        total_return += (env.gamma ** t) * r
         t += 1
-    return {"eval/steps": t, "eval/return": total_return}
+        if t > 200:
+            break
+    return total_return
 
 
-def pg(pi, adv, eta):
-    pi = pi * jnp.exp(1 + eta * adv)
+def pg(pi, adv, *args):
+    pi = pi * jnp.exp(1 + config.eta * adv)
     pi = jax.nn.softmax(pi)
-    return pi
-
-
-def ppo(pi, adv, eta):
-    pi = pi * jnp.exp(eta * adv)
-    pi = jax.nn.softmax(pi)
-    return pi
+    return pi, {}
 
 
 def pg_loss(pi, pi_old, d_s, adv):
-    _kl = config.eta * kl(pi_old, pi, reduce="")
-    pi_grad = (pi_old * jnp.log(pi) * adv).sum(1)
-    loss = (d_s * (pi_grad - _kl)).sum(-1)
-    return loss
+    kl = 1 / config.eta * kl_fn(pi_old, pi, d_s)
+    loss = (pi_old * jnp.log(pi) * adv).sum(1)
+    loss = (d_s * loss).sum(0)
+    kl = (d_s * kl).sum(0)
+    return loss + kl
 
 
-def ppo_loss(pi, pi_old, d_pi, adv):
-    _kl = config.eta * kl(pi_old, pi, reduce="")
-    pi_grad = (pi / pi_old * adv).sum(1)
-    loss = (d_pi * (pi_grad - _kl)).sum(-1)
-    return loss
+def ppo(pi, adv, *args):
+    pi = pi * jnp.exp(config.eta * adv)
+    pi = jax.nn.softmax(pi)
+    return pi, {}
 
 
-def entropy(pi):
-    return - (pi * jnp.log(pi)).sum(1).mean()
+def ppo_loss(pi, pi_old, d_s, adv):
+    kl = 1 / config.eta * kl_fn(pi_old, pi, d_s)
+    loss = (d_s * (pi / pi_old * adv).sum(1)).sum(0)
+    kl = (kl * d_s).sum(0)
+    return loss + kl
 
 
-def policy_iteration(env, pi_fn, d_pi, eta, max_iterations=10, key_gen=None):
-    pi = jnp.ones((env.state_space, env.action_space))
-    pi /= pi.sum(axis=-1, keepdims=True)
-    for global_step in range(max_iterations):
-        v = get_value(env, pi)
-        q = get_q_value(env, pi)
-        adv = q - jnp.expand_dims(v, 1)
+def entropy_fn(pi):
+    return - (pi * jnp.log(pi)).sum(1)
+
+
+def approx_pi(pi_fn):
+    d_pi = jax.value_and_grad(pi_fn)
+
+    def _fn(pi, adv, d_s):
         pi_old = pi.copy()
-        pi = pi_fn(pi, adv, eta)
-        d_s = get_dpi(env, pi)
-        grad = d_pi(pi, pi_old, d_s, adv)
-        grad_norm_sq = jnp.linalg.norm(grad)
-        eval_stats = {}
-        if key_gen is not None:
-            eval_stats = eval_policy(env, pi, key_gen)
-        _kl = kl(pi, pi_old)
-        _entropy = entropy(pi)
-        render(v, q, pi, global_step, {"pi/norm": grad_norm_sq, "pi/kl": _kl, "pi/entropy": _entropy, **eval_stats})
+        total_loss = 0
+        for step in range(config.opt_epochs):
+            loss, grad = d_pi(pi, pi_old, d_s, adv)
+            pi = pi + config.pi_lr * grad
+            grad_norm = jnp.linalg.norm(grad)
+            total_loss += loss
+            pi = jax.nn.softmax(pi)
+        return pi, {"pi/loss": total_loss / config.opt_epochs, "pi/grad_norm_iter": grad_norm}
+
+    return _fn
+
+
+def get_pi_star(q):
+    pi = np.zeros_like(q)
+    idx = q.argmax(1)
+    for i in range(pi.shape[0]):
+        pi[i, idx[i]] = 1
     return pi
+
+
+def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10, key_gen=None):
+    pi = jax.random.uniform(key=next(key_gen), shape=(env.state_space, env.action_space))
+    pi /= pi.sum(axis=-1, keepdims=True)
+
+    v_star = v_iteration(env)
+    q_star = q_iteration(env)
+    pi_star = get_pi_star(q_star)
+    d_star = get_dpi(env, pi_star)
+    adv_star = (pi_star * (q_star - jnp.expand_dims(v_star, 1))).sum(1)
+
+    v = get_value(env, pi_star)
+    q = get_q_value(env, pi_star)
+    adv = (pi_star * (q - jnp.expand_dims(v, 1))).sum(1)
+    assert jnp.allclose(adv, adv_star)
+
+    for global_step in range(max_steps):
+        pi_old = pi.clone()
+        d_s = get_dpi(env, pi_old)
+        pi, adv = get_pi(env, pi_old, pi_fn)
+        entropy = (d_s * entropy_fn(pi)).sum(0)
+        v = get_value(env, pi)
+        kl_star = kl_fn(pi_star, pi, d_star)
+        pi_approx, extra = pi_approx_fn(pi_old.clone(), adv, d_s)
+        v_approx = get_value(env, pi_approx)
+        v_gap_approx = jnp.linalg.norm(v - v_approx)
+        v_gap = jnp.linalg.norm(v - v_star)
+
+        stats = {
+            "train/v_gap": v_gap,
+            "train/v_gap_approx": v_gap_approx,
+            "train/entropy": entropy,
+            "train/kl_star": kl_star,
+                             ** extra}
+        save_stats(stats, global_step)
+        if key_gen is not None:
+            avg_return = 0
+            for _ in range(config.eval_episodes):
+                total_return = eval_policy(env, pi, key_gen)
+                avg_return += total_return
+            save_stats({"eval/total_return": avg_return / config.eval_episodes}, global_step)
+    return pi
+
+
+def get_pi(env, pi, pi_fn):
+    v = get_value(env, pi)
+    q = get_q_value(env, pi)
+    adv = q - jnp.expand_dims(v, 1)
+    pi, _ = pi_fn(pi, adv)
+    return pi, adv
 
 
 def action_to_text(a):
@@ -163,18 +242,21 @@ def action_to_text(a):
         return "down"
 
 
-def render(v, q, pi, global_step, stats):
-    if not config.REMOTE:
-        pi_greedy, _ = plot_pi(q, title=f"pi_greedy:{global_step}")
-        config.tb.add_figure("pi_greedy", pi_greedy, global_step=global_step)
-        v = v.reshape((config.grid_size, config.grid_size))
-        q = q.reshape((config.grid_size, config.grid_size, 4)).max(-1)
-        v = plot_grid(v, title=f"v:{global_step}")
-        config.tb.add_figure("v", v, global_step=global_step)
-        q_star = plot_grid(q, title=f"q:{global_step}")
-        config.tb.add_figure("q", q_star, global_step=global_step)
-        pi_plot, _ = plot_pi(pi, title=f"pi:{global_step}")
-        config.tb.add_figure("pi", pi_plot, global_step=global_step)
+def render(v, q, pi, global_step):
+    # if not config.REMOTE:
+    pi_greedy, _ = plot_pi(q, title=f"pi_greedy:{global_step}")
+    config.tb.add_figure("pi_greedy", pi_greedy, global_step=global_step)
+    v = v.reshape((config.grid_size, config.grid_size))
+    q = q.reshape((config.grid_size, config.grid_size, 4)).max(-1)
+    v = plot_grid(v, title=f"v:{global_step}")
+    config.tb.add_figure("v", v, global_step=global_step)
+    q_star = plot_grid(q, title=f"q:{global_step}")
+    config.tb.add_figure("q", q_star, global_step=global_step)
+    pi_plot, _ = plot_pi(pi, title=f"pi:{global_step}")
+    config.tb.add_figure("pi", pi_plot, global_step=global_step)
+
+
+def save_stats(stats, global_step):
     for k, v in stats.items():
         config.tb.add_scalar(k, v, global_step)
 
@@ -183,15 +265,14 @@ def main():
     key_gen = hk.PRNGSequence(config.seed)
     env = get_gridworld(config.grid_size)
     if config.agent == "ppo":
-        d_pi = jax.jacobian(ppo_loss)
-        ppo_star = policy_iteration(env, pi_fn=ppo, d_pi=d_pi, eta=config.eta, key_gen=key_gen,
-                                    max_iterations=config.max_steps)
+        pi_approx = approx_pi(ppo_loss)
+        pi_fn = ppo
     else:
-        d_pi = jax.jacobian(pg_loss)
-        pi_star = policy_iteration(env, pi_fn=pg, d_pi=d_pi, eta=config.eta, key_gen=key_gen,
-                                   max_iterations=config.max_steps)
-    # print(ppo_star, pi_star)
-    # print(jnp.linalg.norm(ppo_star - pi_star,axis=1, ord=1).sum(0))
+        pi_approx = approx_pi(pg_loss)
+        pi_fn = pg
+
+    ppo_star = policy_iteration(env, pi_fn=pi_fn, pi_approx_fn=pi_approx, key_gen=key_gen,
+                                max_steps=config.max_steps)
 
 
 def make_gif(prefix="pi"):
