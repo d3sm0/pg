@@ -181,7 +181,7 @@ def get_pi_star(q):
 
 
 def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10, key_gen=None):
-    pi = jax.random.uniform(key=next(key_gen), shape=(env.state_space, env.action_space))
+    pi = jax.random.uniform(key=next(key_gen), shape=(1, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
 
     v_star = v_iteration(env)
