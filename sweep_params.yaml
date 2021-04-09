@@ -8,9 +8,5 @@ parameters:
     values: [ "pg", "ppo" ]
   eta:
     values: [ 0.05, 0.1,  0.5, 1.0, 1.5, 2.0, 2.5 ]
-  grid_size:
-    values: [ 4, 6,8 ]
-  opt_epochs:
-    values: [ 2,4,6 ]
-  pi_lr:
-    values: [ 0.01, 0.1, 1.0, 1.5, 2.0 ]
+  seed:
+    values: [ 984,28,3587,969 ]

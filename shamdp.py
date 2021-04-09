@@ -80,3 +80,17 @@ def get_gridworld(grid_size):
     terminal_states = [(grid_size - 1, grid_size - 1)]
     mdp = gw.GridWorldMDP(P, R, gamma, p0, terminal_states, grid_size)
     return mdp
+
+
+def _test(env):
+    s = env.reset()
+    done = False
+    while not done:
+        action = 0
+        s, r, done, _ = env.step(action)
+        print(s, r, done)
+
+
+if __name__ == '__main__':
+    env = get_gridworld(grid_size=2)
+    _test(env)
