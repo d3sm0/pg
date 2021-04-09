@@ -2,10 +2,10 @@ import sys
 import os
 import experiment_buddy
 
-pi_lr = 2.
+pi_lr = 0.1
 gamma = 0.99
 eps_clip = 0.1
-opt_epochs = 2
+opt_epochs = 4
 horizon = 200  # if DEBUG else 200
 eta = 2.0
 grid_size = 4
@@ -14,9 +14,6 @@ save_interval = 10
 max_steps = 30
 seed = 984
 eval_episodes = 10
-use_approx = False
-
-use_cuda = False
 
 REMOTE = 1
 RUN_SWEEP = 1

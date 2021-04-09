@@ -131,11 +131,9 @@ def pg(pi, adv, *args):
 
 
 def pg_loss(pi, pi_old, d_s, adv):
-    kl = 1 / config.eta * kl_fn(pi_old, pi, d_s)
     loss = (pi_old * jnp.log(pi) * adv).sum(1)
     loss = (d_s * loss).sum(0)
-    kl = (d_s * kl).sum(0)
-    return loss + kl
+    return loss
 
 
 def ppo(pi, adv, *args):
@@ -145,10 +143,8 @@ def ppo(pi, adv, *args):
 
 
 def ppo_loss(pi, pi_old, d_s, adv):
-    kl = 1 / config.eta * kl_fn(pi_old, pi, d_s)
     loss = (d_s * (pi / pi_old * adv).sum(1)).sum(0)
-    kl = (kl * d_s).sum(0)
-    return loss + kl
+    return loss
 
 
 def entropy_fn(pi):
@@ -156,18 +152,36 @@ def entropy_fn(pi):
 
 
 def approx_pi(pi_fn):
-    d_pi = jax.value_and_grad(pi_fn)
+    kl_grad = jax.jacobian(kl_fn, argnums=1)
+    d_pi = jax.jacobian(pi_fn)
+
+    def loss_fn(pi, pi_old, d_s, adv):
+        loss = pi_fn(pi, pi_old, d_s, adv) - config.eta * kl_fn(pi_old, pi, d_s)
+        return loss
+
+    d_loss = jax.value_and_grad(loss_fn)
 
     def _fn(pi, adv, d_s):
         pi_old = pi.copy()
         total_loss = 0
+        lr = config.pi_lr
         for step in range(config.opt_epochs):
-            loss, grad = d_pi(pi, pi_old, d_s, adv)
-            pi = pi + config.pi_lr * grad
+            _kl_grad = kl_grad(pi_old, pi, d_s)
+            pi_grad = d_pi(pi, pi_old, d_s, adv)
+            kl_norm = jnp.linalg.norm(_kl_grad)
+            pi_norm = jnp.linalg.norm(pi_grad)
+            eqilibrium = jnp.linalg.norm(pi_grad - 1 / config.eta * _kl_grad)
+            loss, grad = d_loss(pi, pi_old, d_s, adv)
+            pi = pi + lr * grad
             grad_norm = jnp.linalg.norm(grad)
             total_loss += loss
             pi = jax.nn.softmax(pi)
-        return pi, {"pi/loss": total_loss / config.opt_epochs, "pi/grad_norm_iter": grad_norm}
+        return pi, {"pi/loss": total_loss / config.opt_epochs,
+                    "pi/grad_norm_iter": grad_norm,
+                    "pi/equi": eqilibrium,
+                    "pi/kl_grad": kl_norm,
+                    "pi/pi_grad": pi_norm
+                    }
 
     return _fn
 
@@ -200,7 +214,7 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10, key_gen=None):
         pi_old = pi.clone()
         d_s = get_dpi(env, pi_old)
         pi, adv = get_pi(env, pi_old, pi_fn)
-        entropy = (d_s * entropy_fn(pi)).sum(0)
+        entropy = (d_s * entropy_fn(pi_old)).sum(0)
         v = get_value(env, pi)
         kl_star = kl_fn(pi_star, pi, d_star)
         pi_approx, extra = pi_approx_fn(pi_old.clone(), adv, d_s)
@@ -213,7 +227,7 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10, key_gen=None):
             "train/v_gap_approx": v_gap_approx,
             "train/entropy": entropy,
             "train/kl_star": kl_star,
-                             ** extra}
+            **extra}
         save_stats(stats, global_step)
         if key_gen is not None:
             avg_return = 0
