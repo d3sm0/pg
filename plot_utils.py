@@ -7,8 +7,6 @@ from matplotlib import pyplot as plt
 import config
 
 
-# from main import action_to_text
-
 def action_to_text(a):
     if a == 0:
         return "left"

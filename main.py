@@ -13,19 +13,14 @@ import jax
 import jax.numpy as jnp
 
 
-
 def approx_pi(pi_fn, env):
     kl_grad = jax.jacobian(kl_fn, argnums=1)
     d_pi = jax.jacobian(pi_fn)
     eval_pi = functools.partial(get_value, env)
 
-    # def pi_landscape(pi, pi_old, d_s, adv,eta):
-    #    loss = pi_fn(pi, pi_old, d_s, adv, reduce=False) - 1 / eta * kl_fn(pi_old, pi, d_s, reduce=False)
-    #    return loss
-
     def loss_fn(pi, pi_old, d_s, adv):
         loss = pi_fn(pi, pi_old, d_s, adv)
-        kl = 1/config.eta * kl_fn(pi_old, pi, d_s)
+        kl = 1 / config.eta * kl_fn(pi_old, pi, d_s)
         return loss + kl
 
     d_loss = jax.value_and_grad(loss_fn)
@@ -56,13 +51,12 @@ def approx_pi(pi_fn, env):
         total_loss = total_loss / (step + 1)
         avg_improve = avg_improve / (step + 1)
 
-        # landscape = pi_landscape(pi, pi_old, d_s, adv)
         return pi, v_half, {"pi/loss": total_loss,
                             "pi/grad_norm_iter": grad_norm,
                             "pi/equi": eqilibrium,
                             "pi/kl_grad": kl_norm,
                             "pi/pi_grad": pi_norm,
-                            "pi/improve": avg_improve
+                            "pi/improve": avg_improve,
                             }
 
     return _fn
