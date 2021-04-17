@@ -1,4 +1,4 @@
-import jax.lax
+import jax.nn
 from jax import numpy as jnp
 
 import numpy as np
@@ -27,6 +27,8 @@ def q_iteration(env, n_iterations=100, eps=1e-5):
 
 def get_soft_value(env, pi, eta):
     p_pi = jnp.einsum('xay,xa->xy', env.P, pi)
+    # for large eta -> pi become deterministic  entropy goes to 0
+    # for small eta pi becomes more randomized and i don't move
     r_pi = jnp.einsum('xa,xa->x', env.R, pi) - 1 / eta * jnp.einsum('xa,xa->x', pi, jnp.log(pi + 1e-6))
     v = jnp.linalg.solve((jnp.eye(env.state_space) - env.gamma * p_pi), r_pi)
     return v
@@ -61,8 +63,9 @@ def kl_fn(p, q, ds):
 
 
 def pg(pi, adv, eta):
-    pi = (pi * (1 + eta * adv))
-    pi = jax.nn.softmax(pi + 1e-6)
+    pi = pi * (1 + eta * adv)
+    #pi = escort(pi)
+    pi = jax.nn.softmax(pi, -1)
     return pi
 
 
@@ -90,7 +93,10 @@ def entropy_fn(pi):
 
 def get_pi(env, pi_old, pi_fn, eta):
     pi = pi_old.clone()
-    adv, d_s = get_adv(env, pi)
+    v = get_value(env, pi)
+    q = get_q_value(env, pi)
+    d_s = get_dpi(env, pi)
+    adv = q - jnp.expand_dims(v, 1)
     pi = pi_fn(pi, adv, eta)
     new_value = get_value(env, pi)
     entropy = (d_s * entropy_fn(pi)).sum()
@@ -99,12 +105,24 @@ def get_pi(env, pi_old, pi_fn, eta):
     return pi, adv, entropy, new_value, kl
 
 
-def get_adv(env, pi):
+def escort(log_pi):
+    pi = jnp.abs(log_pi) / jnp.abs(log_pi).sum(1, keepdims=True)
+    return pi
+
+
+def get_pi_from_log(env, log_pi, pi_fn, eta):
+    # pi = jax.nn.softmax(log_pi)
+    pi = escort(log_pi)
     v = get_value(env, pi)
     q = get_q_value(env, pi)
-    adv = q - jnp.expand_dims(v, 1)
     d_s = get_dpi(env, pi)
-    return adv, d_s
+    adv = q - jnp.expand_dims(v, 1)
+    log_pi = pg(log_pi, adv, eta)
+    new_value = get_value(env, pi)
+    entropy = (d_s * entropy_fn(pi)).sum()
+    d_s = get_dpi(env, pi)
+    kl = kl_fn(pi, jax.nn.softmax(log_pi), d_s)
+    return log_pi, adv, entropy, new_value, kl
 
 
 def get_star(env):
