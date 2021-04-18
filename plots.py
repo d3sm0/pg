@@ -28,19 +28,30 @@ n_steps = 10
 for idx, eta in enumerate(etas):
     ax = axs[idx]
     pi_ppo = pi.clone()
-    for _ in range(n_steps):
+    last_v = get_value(env, pi)
+    t = 0
+    while True:
         pi_ppo, _, e_ppo, v_ppo, _ = get_pi(env, pi_ppo, ppo, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_ppo[0], label=f"agent=ppo:delta:h={e_ppo :.3f}:v={v_ppo[0] :.3f}",
+        if np.linalg.norm(last_v - v_ppo) < 1e-3:
+            break
+        t += 1
+        last_v = v_ppo
+    ax.hist(np.arange(env.action_space), weights=pi_ppo[0], label=f"ppo:h={e_ppo :.3f}:v={v_ppo[0] :.3f}:t:={t}",
             alpha=0.5)
-    pi_pg = pi.clone()
-    for _ in range(n_steps):
-        pi_pg, _, e_pg, v_pg, _ = get_pi(env, pi_pg, pg, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_pg[0], label=f"agent=pg:delta:h={e_pg :.3f}:v={v_pg[0] :.3f}",
-            alpha=0.5)
+    pg_pi = pi.clone()
+    last_v = get_value(env, pi)
+    t = 0
+    while True:
+        pg_pi, _, e_pg, v_pg, _ = get_pi(env, pg_pi, pg, eta=eta)
+        if np.linalg.norm(last_v - v_pg) < 1e-3:
+            break
+        t += 1
+        last_v = v_pg
+    ax.hist(np.arange(env.action_space), weights=pg_pi[0], label=f"pg:h={e_pg :.3f}:v={v_pg[0] :.3f}:t={t}", alpha=0.5)
     ax.set_title(f"eta:{eta:.2f}")
     ax.legend()
     plt.xticks(np.arange(env.action_space), labels)
-plt.savefig(f"soft_value_{n_steps}")
+plt.savefig(f"plots/escort_{n_steps}_{config.grid_size}")
 plt.tight_layout()
 plt.show(block=False)
 plt.pause(5)
