@@ -8,13 +8,13 @@ eps_clip = 0.1
 opt_epochs = 10
 horizon = 200  # if DEBUG else 200
 eta = 1.0
-grid_size = 8
+grid_size = 4
 agent = "pg"
 save_interval = 10
 max_steps = 20
 seed = 984
 eval_episodes = 10
-data ="data"
+data = "data"
 
 REMOTE = 1
 RUN_SWEEP = 1
