@@ -73,7 +73,7 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         pi, adv, entropy_new, v, kl = get_pi(env, pi_old, pi_fn, config.eta)
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
-        v_gap_star = jnp.linalg.norm(v - v_star, 1)
+        v_gap_star = jnp.abs(v[0] - v_star[0])
         # v_gap_ = jnp.linalg.norm(v - v_approx, 1)
         stats = {
             # "train/true_return": v[0],
