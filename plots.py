@@ -12,36 +12,40 @@ import matplotlib.pyplot as plt
 
 from misc_utils import get_soft_value, entropy_fn, kl_fn, ppo, pg, get_q_value, get_value, get_dpi, get_pi, get_pi_star, \
     get_star, get_pi_from_log, escort
+from plot_fn import gridworld_plot_sa, plot_vf
 
 key_gen = hk.PRNGSequence(0)
 
-etas = np.linspace(0.1, 4, num=9)
+etas = np.linspace(0.01, 0.3, num=9)
 env = get_gridworld(config.grid_size)
 pi = jnp.ones(shape=(env.state_space, env.action_space))
 pi /= pi.sum(1, keepdims=True)
 # from main import action_to_text
 labels = ["left", "right", "up", "down"]
-fig, axs = plt.subplots(3, 3, figsize=(12, 6), sharex=True)
-axs = axs.flatten()
 pi_star, *_ = get_star(env)
-n_steps = 10
-for idx, eta in enumerate(etas):
-    ax = axs[idx]
-    pi_ppo = pi.clone()
-    for _ in range(n_steps):
-        pi_ppo, _, e_ppo, v_ppo, _ = get_pi(env, pi_ppo, ppo, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_ppo[0], label=f"agent=ppo:delta:h={e_ppo :.3f}:v={v_ppo[0] :.3f}",
-            alpha=0.5)
-    pi_pg = pi.clone()
-    for _ in range(n_steps):
-        pi_pg, _, e_pg, v_pg, _ = get_pi(env, pi_pg, pg, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_pg[0], label=f"agent=pg:delta:h={e_pg :.3f}:v={v_pg[0] :.3f}",
-            alpha=0.5)
-    ax.set_title(f"eta:{eta:.2f}")
-    ax.legend()
-    plt.xticks(np.arange(env.action_space), labels)
-plt.savefig(f"soft_value_{n_steps}")
-plt.tight_layout()
-plt.show(block=False)
-plt.pause(5)
-plt.close()
+gridworld_plot_sa(env, pi_star, f"pi_star")
+plt.savefig("plots/pi_star")
+agents = {"ppo": ppo, "pg": pg}
+t_max = int(1e3)
+for agent, agent_fn in agents.items():
+    fig, axs = plt.subplots(3, 3, figsize=(12, 6), sharex=True)
+    axs = axs.flatten()
+    for idx, eta in enumerate(etas):
+        ax = axs[idx]
+        pg_pi = pi.clone()
+        last_v = get_value(env, pi)
+        t = 0
+        while True:
+            pg_pi, _, e_pg, v_pg, _ = get_pi(env, pg_pi, agent_fn, eta=eta)
+            assert pg_pi.sum(1).all() and (pg_pi >= 0).all()
+            if np.linalg.norm(last_v[0] - v_pg[0]) < 1e-2 or t > t_max:
+                break
+            t += 1
+            last_v = v_pg
+        gridworld_plot_sa(env, pg_pi, f"pg:h={e_pg :.3f}:v={v_pg[0] :.3f}:t={t}:eta={eta:.2f}", ax=ax)
+    plt.savefig(f"plots/agent={agent}:size={config.grid_size}")
+    plt.tight_layout()
+    # plt.show(block=False)
+    # plt.pause(5)
+    plt.close()
+# plot_vf(env, v_pg, f"pg:h={e_pg :.3f}:v={v_pg[0] :.3f}:t={t}:eta={eta:.2f}", ax=ax)

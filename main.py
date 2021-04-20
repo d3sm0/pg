@@ -66,15 +66,17 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
     pi_star, adv_star, d_star, v_star = get_star(env)
     pi = jnp.ones(shape=(env.state_space, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
-    for global_step in tqdm.trange(max_steps):
+    # for global_step in tqdm.trange(max_steps):
+    global_step = 0
+    last_v = get_value(env, pi)
+    while True:
         pi_old = pi.clone()
         d_s = get_dpi(env, pi_old)
         entropy = (d_s * entropy_fn(pi_old)).sum(0)
         pi, adv, entropy_new, v, kl = get_pi(env, pi_old, pi_fn, config.eta)
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
-        v_gap_star = jnp.linalg.norm(v - v_star, 1)
-        # v_gap_ = jnp.linalg.norm(v - v_approx, 1)
+        v_gap_star = jnp.abs(v[0] - v_star[0])
         stats = {
             # "train/true_return": v[0],
             # "train/v_gap_approx": v_gap_,
@@ -82,9 +84,14 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
             "train/entropy": entropy,
             "train/kl_star": kl_star,
             "train/kl": kl,
+            "train/t": global_step,
             # **pi_stats,
         }
         save_stats(stats, global_step)
+        if jnp.linalg.norm(last_v - v) < config.eps:
+            break
+        global_step += 1
+        last_v = v
 
 
 def save_stats(stats, global_step):

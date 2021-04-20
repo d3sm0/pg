@@ -63,9 +63,14 @@ def kl_fn(p, q, ds):
 
 
 def pg(pi, adv, eta):
+    # This number might be negative
+    # adv = (adv - adv.min()) / (adv.max() - adv.min())
+    # eta = jnp.linalg.solve(pi * adv, 1 - pi)
+    # eta = jnp.linalg.inv(pi * adv)@(1 - pi)
+
     pi = pi * (1 + eta * adv)
-    #pi = escort(pi)
-    pi = jax.nn.softmax(pi, -1)
+    # pi = jax.nn.softmax(pi, axis=1)
+    # pi = escort(pi)
     return pi
 
 
@@ -110,19 +115,19 @@ def escort(log_pi):
     return pi
 
 
-def get_pi_from_log(env, log_pi, pi_fn, eta):
-    # pi = jax.nn.softmax(log_pi)
-    pi = escort(log_pi)
-    v = get_value(env, pi)
-    q = get_q_value(env, pi)
-    d_s = get_dpi(env, pi)
+def get_pi_from_log(env, pi_old, pi_fn, eta):
+    # @pi_old = jax.nn.softmax(pi)
+    # pi = escort(pi)
+    v = get_value(env, pi_old)
+    q = get_q_value(env, pi_old)
+    d_s = get_dpi(env, pi_old)
     adv = q - jnp.expand_dims(v, 1)
-    log_pi = pg(log_pi, adv, eta)
+    pi = pg(pi_old, adv, eta)
     new_value = get_value(env, pi)
     entropy = (d_s * entropy_fn(pi)).sum()
     d_s = get_dpi(env, pi)
-    kl = kl_fn(pi, jax.nn.softmax(log_pi), d_s)
-    return log_pi, adv, entropy, new_value, kl
+    kl = kl_fn(pi, pi_old, d_s)
+    return pi, adv, entropy, new_value, kl
 
 
 def get_star(env):
