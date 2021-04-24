@@ -7,4 +7,6 @@ parameters:
   agent:
     values: [ "pg", "ppo" ]
   eta:
-    values: [ 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4 ]
+    values: [0.01, 0.03, 0.06, 0.09, 0.1, 0.2, 0.3]
+  grid_size:
+    values: [ 2, 4, 6]

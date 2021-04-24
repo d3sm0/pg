@@ -1,47 +1,45 @@
-# TODO plot a 2d transformation of the two densities given the same advatnage funciton and their statistic for every state and action
-# what we should observe is what actions are chosen
-
-import numpy as np
-import config
-from shamdp import get_gridworld
-import jax
 import jax.numpy as jnp
-
-import haiku as hk
 import matplotlib.pyplot as plt
+import numpy as np
 
-from misc_utils import get_soft_value, entropy_fn, kl_fn, ppo, pg, get_q_value, get_value, get_dpi, get_pi, get_pi_star, \
-    get_star, get_pi_from_log, escort
+import config
+from misc_utils import ppo, pg, get_value, get_pi, get_star
+from plot_fn import gridworld_plot_sa
+from shamdp import get_gridworld
 
-key_gen = hk.PRNGSequence(0)
+t_max = int(1e2)
 
-etas = np.linspace(0.1, 4, num=9)
+etas = np.linspace(0.01, 0.3, num=9)
 env = get_gridworld(config.grid_size)
 pi = jnp.ones(shape=(env.state_space, env.action_space))
 pi /= pi.sum(1, keepdims=True)
 # from main import action_to_text
 labels = ["left", "right", "up", "down"]
-fig, axs = plt.subplots(3, 3, figsize=(12, 6), sharex=True)
-axs = axs.flatten()
-pi_star, *_ = get_star(env)
-n_steps = 10
-for idx, eta in enumerate(etas):
-    ax = axs[idx]
-    pi_ppo = pi.clone()
-    for _ in range(n_steps):
-        pi_ppo, _, e_ppo, v_ppo, _ = get_pi(env, pi_ppo, ppo, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_ppo[0], label=f"agent=ppo:delta:h={e_ppo :.3f}:v={v_ppo[0] :.3f}",
-            alpha=0.5)
-    pi_pg = pi.clone()
-    for _ in range(n_steps):
-        pi_pg, _, e_pg, v_pg, _ = get_pi(env, pi_pg, pg, eta=eta)
-    ax.hist(np.arange(env.action_space), weights=pi_pg[0], label=f"agent=pg:delta:h={e_pg :.3f}:v={v_pg[0] :.3f}",
-            alpha=0.5)
-    ax.set_title(f"eta:{eta:.2f}")
-    ax.legend()
-    plt.xticks(np.arange(env.action_space), labels)
-plt.savefig(f"soft_value_{n_steps}")
-plt.tight_layout()
-plt.show(block=False)
-plt.pause(5)
-plt.close()
+pi_star, _, _, v_star = get_star(env)
+gridworld_plot_sa(env, pi_star, f"pi_star")
+plt.savefig("plots/pi_star")
+agents = {"pg": pg, "ppo": ppo}
+for agent, agent_fn in agents.items():
+    fig, axs = plt.subplots(3, 3, figsize=(12, 6), sharex=True)
+    axs = axs.flatten()
+    for idx, eta in enumerate(etas):
+        ax = axs[idx]
+        pg_pi = pi.clone()
+        last_v = get_value(env, pi)
+        t = 0
+        while True:
+            pg_pi, _, e_pg, v_pg, _ = get_pi(env, pg_pi, agent_fn, eta=eta)
+            assert jnp.allclose(pg_pi.sum(1), 1) and (pg_pi >= 0).all()
+            if np.linalg.norm(last_v[0] - v_pg[0]) < 1e-3 or t > t_max:
+                break
+            t += 1
+            last_v = v_pg
+        title = f"pg:h={e_pg :.3f}:gap={v_star[0] - v_pg[0]:.3f}:t={t}:eta={eta:.2f}"
+        # plot_policy_at_state(pg_pi, action_label=labels, title=title, ax=ax)
+        gridworld_plot_sa(env, pg_pi, title, ax=ax)
+        # plot_vf(env, v_pg, f"pg:h={e_pg :.3f}:v={v_pg[0] :.3f}:t={t}:eta={eta:.2f}", ax=ax, frame=(0, 0, 0, 0))
+    plt.savefig(f"plots/param:agent={agent}:size={config.grid_size}")
+    plt.tight_layout()
+    plt.show(block=False)
+    plt.pause(5)
+    plt.close()

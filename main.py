@@ -1,16 +1,13 @@
 # exact update of every policy and parameterfs
 import functools
 
-import tqdm
+import jax
+import jax.numpy as jnp
 
-import haiku as hk
-
+import config
 # from misc_utils import get_value, kl_fn, get_dpi, entropy_fn, pg_loss, ppo_loss, ppo, pg, get_pi
 from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss
 from shamdp import get_gridworld
-import config
-import jax
-import jax.numpy as jnp
 
 
 def approx_pi(pi_fn, env):
@@ -66,15 +63,16 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
     pi_star, adv_star, d_star, v_star = get_star(env)
     pi = jnp.ones(shape=(env.state_space, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
-    for global_step in tqdm.trange(max_steps):
+    global_step = 0
+    last_v = get_value(env, pi)
+    while True:
         pi_old = pi.clone()
         d_s = get_dpi(env, pi_old)
         entropy = (d_s * entropy_fn(pi_old)).sum(0)
         pi, adv, entropy_new, v, kl = get_pi(env, pi_old, pi_fn, config.eta)
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
-        v_gap_star = jnp.linalg.norm(v - v_star, 1)
-        # v_gap_ = jnp.linalg.norm(v - v_approx, 1)
+        v_gap_star = jnp.abs(v[0] - v_star[0])
         stats = {
             # "train/true_return": v[0],
             # "train/v_gap_approx": v_gap_,
@@ -82,9 +80,14 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
             "train/entropy": entropy,
             "train/kl_star": kl_star,
             "train/kl": kl,
+            "train/t": global_step,
             # **pi_stats,
         }
         save_stats(stats, global_step)
+        if jnp.linalg.norm(last_v - v) < config.eps or global_step > max_steps:
+            break
+        global_step += 1
+        last_v = v
 
 
 def save_stats(stats, global_step):

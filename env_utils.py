@@ -83,3 +83,17 @@ def enumerate_state_space(env):
     return state_dict, n_to_state
 
 
+def eval_policy(env, pi, key_gen):
+    s = env.reset()
+    done = False
+    total_return = 0
+    t = 0
+    while not done:
+        p = jnp.einsum("s, sa->a", s, pi)
+        action = jax.random.choice(key=next(key_gen), a=env.action_space, p=p).item()
+        s, r, done, info = env.step(action)
+        total_return += (env.gamma ** t) * r
+        t += 1
+        if t > 200:
+            break
+    return total_return
