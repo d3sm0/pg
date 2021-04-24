@@ -1,10 +1,10 @@
-program: ppo.py
+program: main.py
 method: grid
 metric:
   name: return
   goal: maximize
 parameters:
-  ^agent:
-    values: [ "pg" ]
-  ^seed:
-    values: [ 984,28,3587,969,5522,8043 , 50, 342, 99532, 5 ]
+  agent:
+    values: [ "ppo", "pg" ]
+  seed:
+    values: [ 984,28,3587,969 ]
