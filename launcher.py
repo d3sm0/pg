@@ -1,8 +1,9 @@
 import multiprocessing as mp
+import numpy as np
 
 import os
 
-etas = [0.03, 0.06, 0.12, 0.24, 0.36, 0.48, 0.55, 0.60]
+etas = np.linspace(0.01, 1., 9)
 agents = ["pg", "ppo"]
 import itertools
 

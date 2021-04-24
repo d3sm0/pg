@@ -8,7 +8,7 @@ from jax import numpy as jnp
 import config
 
 
-def plot_vf(env, vf, title, frame, ax):
+def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=True, step=None):
     if ax is None:
         ax = plt.gca()
 
@@ -16,7 +16,7 @@ def plot_vf(env, vf, title, frame, ax):
     vf = vf.reshape(env.size, env.size)
     num_cols, num_rows = vf.shape
 
-    tag = f"plots/vf/{title}"
+    tag = f"plots/{title}"
     title = f"{title}_{vf.max():.5f}"
 
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
@@ -32,19 +32,20 @@ def plot_vf(env, vf, title, frame, ax):
     ax.imshow(vf, origin='lower')
 
     ax.set_aspect(1)
+    plt.savefig(tag.replace(".", "_"))
+    if log_plot:
+        assert step is not None
+        config.tb.plot(tag, plt, step)
+        plt.clf()
 
-
-def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None):
+def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None, log_plot=False):
     """
     This is going to generate a quiver plot to visualize the policy graphically.
     It is useful to see all the probabilities assigned to the four possible actions
     in each state
     """
-    log_plot = False
     if ax is None:
         ax = plt.gca()
-        # log_plot = False
-        # assert step is not None
     num_cols = env.ncol if hasattr(env, "ncol") else env.size
     num_rows = env.ncol if hasattr(env, "nrow") else env.size
 
@@ -88,8 +89,9 @@ def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None):
 
     tag = f"plots/{title}"
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
-
+    plt.savefig(tag.replace(".", "_"))
     if log_plot:
+        assert step is not None
         config.tb.plot(tag, plt, step)
         plt.clf()
 

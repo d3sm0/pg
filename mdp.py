@@ -4,7 +4,6 @@ import emdp.gridworld as gw
 import numpy as np
 import itertools
 from emdp import actions
-from gym.spaces import Discrete
 
 
 def process_action(state, action):
@@ -66,7 +65,7 @@ def get_gridworld(grid_size):
     now set the probability of going from 3 to 13 with prob 1 for all actions
     """
 
-    P = gw.build_simple_grid(size=grid_size, p_success=1, terminal_states=[(grid_size -1, grid_size-1)])
+    P = gw.build_simple_grid(size=grid_size, p_success=1, terminal_states=[(grid_size - 1, grid_size - 1)])
     n_states, n_actions = P.shape[:2]
     R = np.zeros((n_states, n_actions))
     idx = idx_to_grid(grid_size - 1, grid_size - 1, grid_size)

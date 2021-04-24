@@ -54,9 +54,21 @@ def kl_fn(p, q, ds):
 
 def pg(pi, adv, eta):
     # This number might be negative
-    # adv = jnp.clip(adv, 0.)
+    # adv = adv
+    # adv = jnp.clip(adv, 0)
     pi = pi * (1 + eta * adv)
+    # pi = jnp.clip(pi, 0)
     # pi = pi / pi.sum(1, keepdims=True)
+    return pi
+
+
+def pg_clip(pi, adv, eta):
+    # This number might be negative
+    # adv = adv
+    # adv = jnp.clip(adv, 0)
+    pi = pi * (1 + eta * adv)
+    pi = jnp.clip(pi, 0)
+    pi = pi / pi.sum(1, keepdims=True)
     return pi
 
 
@@ -111,3 +123,7 @@ def get_pi_star(q):
     for i in range(pi.shape[0]):
         pi[i, idx[i]] = 1
     return pi
+
+
+def is_prob_mass(pg_pi):
+    return jnp.allclose(pg_pi.sum(1), 1) and (pg_pi.min() >= 0).all()

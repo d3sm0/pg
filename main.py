@@ -1,4 +1,5 @@
 # exact update of every policy and parameterfs
+from plot_fn import gridworld_plot_sa, plot_vf
 import functools
 
 import jax
@@ -6,8 +7,8 @@ import jax.numpy as jnp
 
 import config
 # from misc_utils import get_value, kl_fn, get_dpi, entropy_fn, pg_loss, ppo_loss, ppo, pg, get_pi
-from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss
-from shamdp import get_gridworld
+from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss, is_prob_mass
+from mdp import get_gridworld
 
 
 def approx_pi(pi_fn, env):
@@ -84,10 +85,15 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
             # **pi_stats,
         }
         save_stats(stats, global_step)
-        if jnp.linalg.norm(last_v - v) < config.eps or global_step > max_steps:
+        if jnp.linalg.norm(last_v[0] - v[0]) < config.eps or global_step > max_steps:
+            break
+        if not is_prob_mass(pi):
             break
         global_step += 1
         last_v = v
+
+    gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
+    plot_vf(env, v, f"vf:eta={config.eta:.2f}", log_plot=True, step=global_step)
 
 
 def save_stats(stats, global_step):
