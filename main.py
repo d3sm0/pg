@@ -7,7 +7,8 @@ import jax.numpy as jnp
 
 import config
 # from misc_utils import get_value, kl_fn, get_dpi, entropy_fn, pg_loss, ppo_loss, ppo, pg, get_pi
-from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss, is_prob_mass
+from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss, \
+    is_prob_mass, pg_clip
 from mdp import get_gridworld
 
 
@@ -73,7 +74,7 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         pi, adv, entropy_new, v, kl = get_pi(env, pi_old, pi_fn, config.eta)
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
-        v_gap_star = jnp.abs(v[0] - v_star[0])
+        v_gap_star = v_star[0] - v[0]
         stats = {
             # "train/true_return": v[0],
             # "train/v_gap_approx": v_gap_,
@@ -92,8 +93,8 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         global_step += 1
         last_v = v
 
-    gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
-    plot_vf(env, v, f"vf:eta={config.eta:.2f}", log_plot=True, step=global_step)
+    #gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
+    #plot_vf(env, v, f"vf:eta={config.eta:.2f}", log_plot=True, step=global_step)
 
 
 def save_stats(stats, global_step):
@@ -106,6 +107,9 @@ def main():
     if config.agent == "ppo":
         pi_approx = approx_pi(ppo_loss, env)
         pi_fn = ppo
+    elif config.agent == "pg_clip":
+        pi_approx = approx_pi(pg_loss, env)
+        pi_fn = pg_clip
     else:
         pi_approx = approx_pi(pg_loss, env)
         pi_fn = pg

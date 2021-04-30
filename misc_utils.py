@@ -2,6 +2,8 @@ from jax import numpy as jnp
 
 import numpy as np
 
+import config
+
 
 def v_iteration(env, n_iterations=100, eps=1e-5):
     v = jnp.zeros(env.state_space)
@@ -67,15 +69,18 @@ def pg_clip(pi, adv, eta):
     # adv = adv
     # adv = jnp.clip(adv, 0)
     pi = pi * (1 + eta * adv)
-    pi = jnp.clip(pi, 0)
-    pi = pi / pi.sum(1, keepdims=True)
+    if not is_prob_mass(pi):
+        pi = jnp.clip(pi, a_min=0.)
+        pi = pi / pi.sum(1, keepdims=True)
     return pi
 
 
 def ppo(pi, adv, eta):
     pi = pi.clone()
     pi = pi * jnp.exp(eta * adv)
-    pi = pi / pi.sum(1, keepdims=True)
+    denom = pi.sum(1, keepdims=True)
+    pi = pi / denom
+    assert (denom >= 1 - 1e-4).all()
     return pi
 
 
@@ -127,3 +132,28 @@ def get_pi_star(q):
 
 def is_prob_mass(pg_pi):
     return jnp.allclose(pg_pi.sum(1), 1) and (pg_pi.min() >= 0).all()
+
+
+def policy_iteration(agent_fn, env, eta, pi):
+    last_v = get_value(env, pi)
+    t = 0
+    pg_pi = pi.clone()
+    policies = [pi]
+    advs = [jnp.zeros_like(pi)]
+    values = [last_v]
+    while True:
+        pg_pi, adv, e_pg, v_pg, _ = get_pi(env, pg_pi, agent_fn, eta=eta)
+        policies.append(pg_pi)
+        advs.append(adv)
+        values.append(v_pg)
+        if not is_prob_mass(pg_pi):
+            print(f"pi is not valid", pg_pi)
+            break
+        if np.linalg.norm(last_v[0] - v_pg[0]) < config.eps or t > config.max_steps:
+            break
+        t += 1
+        last_v = v_pg
+    policies = jnp.stack(policies)
+    advs = jnp.stack(advs)
+    values = jnp.stack(values)
+    return e_pg, pg_pi, t, v_pg, policies, advs, values
