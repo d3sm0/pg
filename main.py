@@ -1,5 +1,4 @@
 # exact update of every policy and parameterfs
-from plot_fn import gridworld_plot_sa, plot_vf
 import functools
 
 import jax
@@ -7,7 +6,11 @@ import jax.numpy as jnp
 
 import config
 # from misc_utils import get_value, kl_fn, get_dpi, entropy_fn, pg_loss, ppo_loss, ppo, pg, get_pi
-from misc_utils import get_star, entropy_fn, get_dpi, get_pi, pg, kl_fn, get_value, ppo_loss, ppo, pg_loss, is_prob_mass
+from env_utils import eval_policy
+from experiments.plot_fn import gridworld_plot_sa, plot_vf, plot_policy_at_state
+from utils.envs import get_four_rooms
+from utils.misc_utils import get_star, entropy_fn, get_dpi, get_pi, kl_fn, get_value, ppo_loss, ppo, pg_loss, \
+    is_prob_mass, pg_clip
 from mdp import get_gridworld
 
 
@@ -62,7 +65,7 @@ def approx_pi(pi_fn, env):
 
 def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
     pi_star, adv_star, d_star, v_star = get_star(env)
-    pi = jnp.ones(shape=(env.state_space, env.action_space))
+    pi = jnp.ones(shape=(1, env.action_space))
     pi /= pi.sum(axis=-1, keepdims=True)
     global_step = 0
     last_v = get_value(env, pi)
@@ -70,13 +73,15 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         pi_old = pi.clone()
         d_s = get_dpi(env, pi_old)
         entropy = (d_s * entropy_fn(pi_old)).sum(0)
-        pi, adv, entropy_new, v, kl = get_pi(env, pi_old, pi_fn, config.eta)
+        pi, adv, entropy_new, v, kl, _ = get_pi(env, pi_old, pi_fn, config.eta)
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
-        v_gap_star = jnp.abs(v[0] - v_star[0])
+        v_gap_star = jnp.linalg.norm(v_star - last_v)
+        sampled_return = eval_policy(env, pi)
         stats = {
-            # "train/true_return": v[0],
-            # "train/v_gap_approx": v_gap_,
+            "train/v_star": v_star[10],
+            "train/return": v[10],
+            "train/sampled_return": sampled_return,
             "train/v_gap_star": v_gap_star,
             "train/entropy": entropy,
             "train/kl_star": kl_star,
@@ -85,15 +90,24 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
             # **pi_stats,
         }
         save_stats(stats, global_step)
-        if jnp.linalg.norm(last_v[0] - v[0]) < config.eps or global_step > max_steps:
+        delta = jnp.linalg.norm(v - last_v)
+        if config.use_kl:
+            condition = kl
+        else:
+            condition = delta
+        eps = config.eps
+        # print(v[10] - last_v[10], delta, kl, v_star[10] - v[10])
+        if condition < eps or global_step > max_steps:
+            print("done")
+            # print(sampled_return - v[10])
+            # plot_policy_at_state(pi, action_label=labels, title=title)
+            # gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
+            # plot_vf(env, v, f"vf:eta={config.eta:.2f}")
             break
         if not is_prob_mass(pi):
             break
         global_step += 1
         last_v = v
-
-    gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
-    plot_vf(env, v, f"vf:eta={config.eta:.2f}", log_plot=True, step=global_step)
 
 
 def save_stats(stats, global_step):
@@ -102,13 +116,19 @@ def save_stats(stats, global_step):
 
 
 def main():
-    env = get_gridworld(config.grid_size)
+    # env = get_gridworld(config.grid_size)
+    # env = get_f(config.grid_size)
+    env = get_four_rooms(config.gamma)
     if config.agent == "ppo":
         pi_approx = approx_pi(ppo_loss, env)
         pi_fn = ppo
+    elif config.agent == "pg_clip":
+        pi_approx = approx_pi(pg_loss, env)
+        pi_fn = pg_clip
     else:
         pi_approx = approx_pi(pg_loss, env)
-        pi_fn = pg
+        pi_fn = pg_clip
+        # pi_fn = pg
 
     policy_iteration(env, pi_fn=pi_fn, pi_approx_fn=pi_approx, max_steps=config.max_steps)
     print("done")
