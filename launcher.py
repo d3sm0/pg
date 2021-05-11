@@ -3,8 +3,8 @@ import numpy as np
 
 import os
 
-etas = np.linspace(0.01, 1., 9)
-agents = ["pg", "ppo"]
+etas = np.linspace(0.01, 0.2, 9)
+agents = ["pg", "ppo", "pg_clip"]
 import itertools
 
 os.environ["BUDDY_IS_DEPLOYED"] = "1"
