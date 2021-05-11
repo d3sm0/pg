@@ -2,6 +2,8 @@ from jax import numpy as jnp
 
 import numpy as np
 
+import config
+
 
 def v_iteration(env, n_iterations=100, eps=1e-5):
     v = jnp.zeros(env.state_space)
@@ -47,35 +49,34 @@ def get_q_value(env, pi):
 
 
 def kl_fn(p, q, ds):
-    _kl = (p * jnp.log((p + 1e-4) / (q + 1e-4))).sum(1)
+    _kl = ((p+1e-6) * jnp.log((p+1e-6)/(q+1e-6))).sum(1)
     _kl = (ds * _kl).sum()
-    return _kl
+    #assert _kl >=0
+    return _kl # jnp.clip(_kl, 0.)
 
 
 def pg(pi, adv, eta):
     # This number might be negative
-    # adv = adv
-    # adv = jnp.clip(adv, 0)
     pi = pi * (1 + eta * adv)
-    # pi = jnp.clip(pi, 0)
-    # pi = pi / pi.sum(1, keepdims=True)
+    pi = pi / pi.sum(1, keepdims=True)
     return pi
 
 
 def pg_clip(pi, adv, eta):
     # This number might be negative
-    # adv = adv
-    # adv = jnp.clip(adv, 0)
     pi = pi * (1 + eta * adv)
-    pi = jnp.clip(pi, 0)
-    pi = pi / pi.sum(1, keepdims=True)
+    if not is_prob_mass(pi):
+        pi = jnp.clip(pi, a_min=0.)
+        pi = pi / pi.sum(1, keepdims=True)
     return pi
 
 
 def ppo(pi, adv, eta):
     pi = pi.clone()
-    pi = pi * jnp.exp(eta * adv)
-    pi = pi / pi.sum(1, keepdims=True)
+    pi = pi * (jnp.exp(eta * adv))
+    denom = pi.sum(1, keepdims=True)
+    pi = pi / denom
+    assert (denom >= 1 - 1e-4).all()
     return pi
 
 
@@ -100,12 +101,16 @@ def get_pi(env, pi_old, pi_fn, eta):
     q = get_q_value(env, pi)
     d_s = get_dpi(env, pi)
     adv = q - jnp.expand_dims(v, 1)
-    pi = pi_fn(pi, adv, eta)
+    if config.use_fa:
+        _adv = jnp.expand_dims(jnp.einsum('i,ij->j', d_s, adv), 0)
+    else:
+        _adv = adv
+    pi = pi_fn(pi, _adv, eta)
     new_value = get_value(env, pi)
     entropy = (d_s * entropy_fn(pi)).sum()
     d_s = get_dpi(env, pi)
-    kl = kl_fn(pi_old, pi, d_s)
-    return pi, adv, entropy, new_value, kl
+    kl = kl_fn(pi, pi_old, d_s)
+    return pi, adv, entropy, new_value, kl, d_s
 
 
 def get_star(env):
@@ -127,3 +132,38 @@ def get_pi_star(q):
 
 def is_prob_mass(pg_pi):
     return jnp.allclose(pg_pi.sum(1), 1) and (pg_pi.min() >= 0).all()
+
+
+def policy_iteration(agent_fn, env, eta, pi):
+    last_v = get_value(env, pi)
+    t = 0
+    pi_old = pi.clone()
+    policies = [pi]
+    advs = [jnp.zeros((env.state_space, env.action_space))]
+    values = [last_v]
+    kls =[jnp.array(0., )]
+    *_, v_star = get_star(env)
+    while True:
+        pi, adv, e_pg, v, kl, d_s = get_pi(env, pi_old, agent_fn, eta=eta)
+        kls.append(kl)
+        policies.append(pi)
+        advs.append(adv)
+        values.append(v)
+        if not is_prob_mass(pi):
+            print(f"pi is not valid", pi)
+            break
+        # plot value function sto
+        delta = jnp.linalg.norm(v - last_v)
+        # delta = kl
+        # delta = jnp.linalg.norm(pi - pi_old)
+        #eps = config.eps * (1 - env.gamma) / (2 * env.gamma)
+        eps = config.eps
+        if delta < eps or t > config.max_steps:
+            break
+        t += 1
+        pi_old = pi
+        last_v = v
+    policies = jnp.stack(policies, 0)
+    advs = jnp.stack(advs, 0)
+    values = jnp.stack(values, 0)
+    return e_pg, pi, t, v, policies, advs, values
