@@ -1,6 +1,10 @@
 import gym
 import numpy as np
 
+import haiku as hk
+import jax.numpy as jnp
+import jax
+
 
 class StatisticsWrapper(gym.Wrapper):
     def __init__(self, env):
@@ -83,7 +87,8 @@ def enumerate_state_space(env):
     return state_dict, n_to_state
 
 
-def eval_policy(env, pi, key_gen):
+def eval_policy(env, pi):
+    key_gen = hk.PRNGSequence(0)
     s = env.reset()
     done = False
     total_return = 0
@@ -94,6 +99,4 @@ def eval_policy(env, pi, key_gen):
         s, r, done, info = env.step(action)
         total_return += (env.gamma ** t) * r
         t += 1
-        if t > 200:
-            break
-    return total_return
+    return total_return/(1-env.gamma)
