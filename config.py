@@ -11,7 +11,7 @@ eta = 1.0
 grid_size = 5
 agent = "pg"
 save_interval = 10
-max_steps = int(4e2)
+max_steps = int(1e2)
 seed = 984
 eval_episodes = 10
 data = "data"
@@ -20,9 +20,9 @@ use_kl = False
 eps = 1e-6 if use_kl else 1e-4
 
 REMOTE = 1
-RUN_SWEEP = 1
+RUN_SWEEP = REMOTE
 NUM_PROCS = 5
-sweep_yaml = "sweep_params.yaml" if RUN_SWEEP else False
+sweep_yaml = "sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
 
