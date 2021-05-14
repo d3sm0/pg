@@ -51,23 +51,6 @@ def get_n_state_chain(n_states=2):
     return mdp
 
 
-def get_shamdp(horizon=2):
-    state_distribution = np.zeros(shape=(horizon + 2,))
-    state_distribution[0] = 1
-    reward_spec = np.zeros(shape=(horizon + 2, 2))
-    reward_spec[:, 1] = -1
-    reward_spec[-1, 1] = 20
-    mdp = build_chain_MDP(n_states=horizon + 2, p_success=1.0,
-                          reward_spec=reward_spec,
-                          starting_distribution=state_distribution,
-                          terminal_states=[horizon + 1], gamma=horizon / (horizon + 1))
-    mdp.action_space = 2
-    mdp.observation_space = 0
-    mdp.reward_range = 0
-    mdp.metadata = 0
-    return mdp
-
-
 def grid_to_idx(idx, grid_size):
     x = idx % grid_size
     y = idx // grid_size
@@ -133,7 +116,7 @@ def build_chain_mdp(H, n_actions, end_reward, right_penalty=0.):
     r = np.zeros((n_states, n_actions))
 
     # taking action 0 at absorbing state gives you reward 1
-    r[-1, 0] = 1.
+    r[-1, 0] = end_reward
 
     # optional penalty of going right at every state but the last
     r[:-1, 0] = right_penalty
@@ -150,49 +133,47 @@ def build_chain_mdp(H, n_actions, end_reward, right_penalty=0.):
     return P, r
 
 
-def shamdp():
-    H = 20
+def get_shamdp():
+    H = 4
     gamma = H / (H + 1)
-    n_states = H + 2
     n_actions = 4
-
-    # original MDP
-    P, r = build_chain_mdp(H, n_actions, 1, 0)
-
     # modified MDP
     # going right except in the absorbing state incurs a penalty
-    penalty = -gamma ** (H // 1.6)
-    _, rhat = build_chain_mdp(H, n_actions, 1, penalty)  # same transition dynamics as original MDP
+    penalty = -gamma ** (H // 1.)
+    P, r = build_chain_mdp(H, n_actions, 1, penalty)  # same transition dynamics as original MDP
+    n_states = P.shape[0]
 
     # starting state distribution
-    rho = np.zeros(n_states)
-    rho[0] = 1.
-
-    # optimal policy of this MDP
-    pistar = np.zeros((n_states, n_actions))
-    pistar[:, 0] = 1.
-
-    # uniform starting state distribution
+    # rho = np.zeros(n_states)
+    # rho[0] = 1.
+    ## uniform starting state distribution
     rho = np.ones(n_states) / n_states
 
-    #@jax.jit
-    #def policy_objective(P, r, gamma, pi, rho):
-    #    v_pi = get_V(P, r, gamma, pi)
-    #    return jnp.sum(v_pi * rho)
-
-    ## verify that the return for going right is still positive
-    #print(f"return of go-right policy/optimal is {policy_objective(P, rhat, gamma, pistar, rho)}")
+    # optimal policy of this MDP
+    from emdp.common import MDP
+    return MDP(P, r, gamma, rho, terminal_states=[n_states - 1])
 
 
-def _test(env):
-    s = env.reset()
-    done = False
-    while not done:
-        action = 0
-        s, r, done, _ = env.step(action)
-        print(s, r, done)
+def test_shamdp():
+    from utils.misc_utils import get_value, get_star
+    mdp = get_shamdp()
+    pistar = np.zeros((mdp.state_space, mdp.action_space))
+    pistar[:, 0] = 1.
+    v = get_value(mdp, pistar)
+    pi_star, adv_star, d_star, v_star = get_star(mdp)
+    print(v)
 
+
+# def _test(env):
+#    s = env.reset()
+#    done = False
+#    while not done:
+#        action = 0
+#        s, r, done, _ = env.step(action)
+#        print(s, r, done)
+#
 
 if __name__ == '__main__':
-    env = get_gridworld(grid_size=2)
-    _test(env)
+    test_shamdp()
+    # env = get_gridworld(grid_size=2)
+    # _test(env)
