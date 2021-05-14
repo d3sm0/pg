@@ -5,23 +5,23 @@ import numpy as np
 import config
 
 
-def v_iteration(env, n_iterations=100, eps=1e-5):
+def v_iteration(env, n_iterations=1000, eps=1e-6):
     v = jnp.zeros(env.state_space)
     for _ in range(n_iterations):
         v_new = (env.R + jnp.einsum("xay,y->xa", env.gamma * env.P, v)).max(1)
-        if jnp.linalg.norm(v - v_new) < eps:
-            break
+        #if jnp.linalg.norm(v - v_new) < eps:
+        #    break
         v = v_new.clone()
     return v
 
 
-def q_iteration(env, n_iterations=100, eps=1e-5):
+def q_iteration(env, n_iterations=1000, eps=1e-6):
     q = jnp.zeros((env.state_space, env.action_space))
     for _ in range(n_iterations):
         q_star = q.max(1)
         q_new = (env.R + jnp.einsum("xay,y->xa", env.gamma * env.P, q_star))
-        if jnp.linalg.norm(q - q_new) < eps:
-            break
+        #if jnp.linalg.norm(q - q_new) < eps:
+        #    break
         q = q_new.clone()
     return q
 
@@ -49,9 +49,9 @@ def get_q_value(env, pi):
 
 
 def kl_fn(p, q, ds):
-    _kl = ((p+1e-6) * jnp.log((p+1e-6)/(q+1e-6))).sum(1)
+    _kl = ((p + 1e-6) * jnp.log((p + 1e-6) / (q + 1e-6))).sum(1)
     _kl = (ds * _kl).sum()
-    #assert _kl >=0
+    # assert _kl >=0
     return jnp.clip(_kl, 0.)
 
 
@@ -119,6 +119,7 @@ def get_star(env):
     pi_star = get_pi_star(q_star)
     d_star = get_dpi(env, pi_star)
     adv_star = q_star - jnp.expand_dims(v_star, 1)
+    v_pi = get_value(env, pi_star)
     return pi_star, adv_star, d_star, v_star
 
 
@@ -141,7 +142,7 @@ def policy_iteration(agent_fn, env, eta, pi):
     policies = [pi]
     advs = [jnp.zeros((env.state_space, env.action_space))]
     values = [last_v]
-    kls =[jnp.array(0., )]
+    kls = [jnp.array(0., )]
     *_, v_star = get_star(env)
     while True:
         pi, adv, e_pg, v, kl, d_s = get_pi(env, pi_old, agent_fn, eta=eta)
@@ -153,9 +154,9 @@ def policy_iteration(agent_fn, env, eta, pi):
             print(f"pi is not valid", pi)
             break
         # plot value function sto
-        #if config.use_kl:
+        # if config.use_kl:
         #    delta = kl
-        #else:
+        # else:
         delta = jnp.linalg.norm(v - last_v)
         eps = config.eps
         if delta < eps or t > config.max_steps:

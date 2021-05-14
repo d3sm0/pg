@@ -20,7 +20,7 @@ use_kl = False
 eps = 1e-6 if use_kl else 1e-4
 
 REMOTE = 1
-RUN_SWEEP = 1
+RUN_SWEEP = REMOTE
 NUM_PROCS = 5
 sweep_yaml = "sweep_params.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
