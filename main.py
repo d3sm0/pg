@@ -11,7 +11,7 @@ from experiments.plot_fn import gridworld_plot_sa, plot_vf, plot_policy_at_state
 from utils.envs import get_four_rooms
 from utils.misc_utils import get_star, entropy_fn, get_dpi, get_pi, kl_fn, get_value, ppo_loss, ppo, pg_loss, \
     is_prob_mass, pg_clip
-from utils.mdp import get_gridworld
+from utils.mdp import get_gridworld, get_shamdp
 
 
 def approx_pi(pi_fn, env):
@@ -66,6 +66,7 @@ def approx_pi(pi_fn, env):
 def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
     pi_star, adv_star, d_star, v_star = get_star(env)
     pi = jnp.ones(shape=(1, env.action_space))
+    pi[:, 0] = 4.4
     pi /= pi.sum(axis=-1, keepdims=True)
     global_step = 0
     last_v = get_value(env, pi)
@@ -77,11 +78,12 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
         v_gap_star = (env.p0 * (v_star - last_v)).sum()
-        sampled_return = eval_policy(env, pi)
+        # sampled_return = eval_policy(env, pi)
         expected_return = (env.p0 * v).sum()
         stats = {
             "train/return": expected_return,
-            "train/sampled_return": sampled_return,
+            "train/prob_right": pi[0, 0],
+            "train/adv_right": adv[0, 0],
             "train/v_gap_star": v_gap_star,
             "train/entropy": entropy,
             "train/kl_star": kl_star,
@@ -91,14 +93,8 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         }
         save_stats(stats, global_step)
         delta = (jnp.linalg.norm(v - last_v))
-        if config.use_kl:
-            condition = kl
-        else:
-            condition = delta
-        eps = config.eps
-        print(delta)
-        # print(v[10] - last_v[10], delta, kl, v_star[10] - v[10])
-        if condition < eps or global_step > max_steps:
+        condition = delta
+        if condition < config.eps or global_step > max_steps:
             print("done")
             # print(sampled_return - v[10])
             # plot_policy_at_state(pi, action_label=labels, title=title)
@@ -119,7 +115,8 @@ def save_stats(stats, global_step):
 def main():
     # env = get_gridworld(config.grid_size)
     # env = get_f(config.grid_size)
-    env = get_four_rooms(config.gamma)
+    # env = get_four_rooms(config.gamma)
+    env = get_shamdp()
     if config.agent == "ppo":
         pi_approx = approx_pi(ppo_loss, env)
         pi_fn = ppo
