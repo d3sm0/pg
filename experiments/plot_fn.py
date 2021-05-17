@@ -32,63 +32,62 @@ def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=False):
     ax.imshow(vf, origin='lower')
 
     ax.set_aspect(1)
-    #plt.savefig(tag.replace(".", "_"))
-    #if log_plot:
+    # plt.savefig(tag.replace(".", "_"))
+    # if log_plot:
     #    assert step is not None
     #    config.tb.plot(tag, plt, step)
     #    plt.clf()
 
 
+def chain_plot_vf(env, vf, title, ax):
+    ax.scatter(np.arange(env.state_space), vf)
+    ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
+
+
 def chain_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None, log_plot=False):
-    if ax is None:
-        ax = plt.gca()
-    # num_cols = env.ncol if hasattr(env, "ncol") else env.size
-    # num_rows = env.ncol if hasattr(env, "nrow") else env.size
-    num_cols = env.state_space
-    num_obs, num_actions = data.shape
 
-    direction = [
-        np.array((-1, 0)),  # left
-        np.array((1, 0)),  # right
-    ]
+    # direction = [
+    #    np.array((-1, 0)),  # left
+    #    np.array((1, 0)),  # right
+    # ]
 
-    #x, y = np.meshgrid(np.arange(env.size), np.arange(env.size))
-    #x, y = x.flatten(), y.flatten()
-    x = np.arange(env.state_space)
+    # x, y = np.meshgrid(np.arange(env.size), np.arange(env.size))
+    # x, y = x.flatten(), y.flatten()
+    ax.plot(data)
 
-    for base, a in zip(direction, range(num_actions)):
-        quivers = np.einsum("d,m->md", base, data[:, a])
+    # for base, a in zip(direction, range(num_actions)):
+    #    quivers = np.einsum("d,m->md", base, data[:, a])
 
-        pos = data[:, a] > 0
-        ax.quiver(x[pos], 2, *quivers[pos].T, units='xy', scale=2.0, color='g')
+    #    pos = data[:, a] > 0
+    #    ax.quiver(x[pos], 2, *quivers[pos].T, units='xy', scale=2.0, color='g')
 
-        pos = data[:, a] < 0
-        ax.quiver(x[pos], 2, *-quivers[pos].T, units='xy', scale=2.0, color='r')
+    #    pos = data[:, a] < 0
+    #    ax.quiver(x[pos], 2, *-quivers[pos].T, units='xy', scale=2.0, color='r')
 
-    x0, x1, y0, y1 = frame
+    # x0, x1, y0, y1 = frame
     # set axis limits / ticks / etc... so we have a nice grid overlay
-    ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
+    # ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
     # ax.set_ylim((y0 - 0.5, num_rows - y1 - 0.5)[::-1])
 
-    ax.set_xticks(np.arange(x0, num_cols - x1, 1))
-    ax.xaxis.set_tick_params(labelsize=5)
+    # ax.set_xticks(np.arange(x0, num_cols - x1, 1))
+    # ax.xaxis.set_tick_params(labelsize=5)
     # ax.set_yticks(np.arange(y0, num_rows - y1, 1))
     # ax.yaxis.set_tick_params(labelsize=5)
 
     # minor ticks
-    ax.set_xticks(np.arange(*ax.get_xlim(), 1), minor=True)
-    ax.set_yticks(np.arange(*ax.get_ylim()[::-1], 1), minor=True)
+    # ax.set_xticks(np.arange(*ax.get_xlim(), 1), minor=True)
+    # ax.set_yticks(np.arange(*ax.get_ylim()[::-1], 1), minor=True)
 
-    ax.grid(which='minor', color='gray', linestyle='-', linewidth=1)
-    ax.set_aspect(1)
+    # ax.grid(which='minor', color='gray', linestyle='-', linewidth=1)
+    # ax.set_aspect(1)
 
-    tag = f"plots/{title}"
+    # tag = f"plots/{title}"
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
-    if log_plot:
-        plt.savefig(tag.replace(".", "_"))
-        assert step is not None
-        config.tb.plot(tag, plt, step)
-        plt.clf()
+    # if log_plot:
+    #    plt.savefig(tag.replace(".", "_"))
+    #    assert step is not None
+    #    config.tb.plot(tag, plt, step)
+    #    plt.clf()
 
 
 def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None, log_plot=False):
@@ -156,7 +155,7 @@ def plot_policy_at_state(pi, action_label, title, ax=None):
     pi = pi.flatten()
     # major ticks
     # ax.hist(np.arange(len(action_label)), weights=pi.flatten())
-    ax.scatter(np.arange(len(action_label)) , pi)
+    ax.scatter(np.arange(len(action_label)), pi)
     for i in range(len(action_label)):
         ax.annotate(f"{pi[i]:.3f}", (i, pi[i]))
 
