@@ -1,10 +1,14 @@
-program: _main.py
-method: grid
+program: main.py
+method: bayes
 metric:
-  name: return
+  name: "train/adv_right"
   goal: maximize
 parameters:
   agent:
-    values: [ "ppo", "pg" ]
-  seed:
-    values: [ 984,28,3587,969 ]
+    values: [ "pg_clip" ]
+  eta:
+    distribution: uniform
+    max: 5.0
+    min: 0.1
+
+
