@@ -7,11 +7,11 @@ import jax.numpy as jnp
 import config
 # from misc_utils import get_value, kl_fn, get_dpi, entropy_fn, pg_loss, ppo_loss, ppo, pg, get_pi
 from env_utils import eval_policy
-from experiments.plot_fn import gridworld_plot_sa, plot_vf, plot_policy_at_state
+from experiments.plot_fn import gridworld_plot_sa, plot_vf, plot_policy_at_state, chain_plot_vf, chain_plot_sa
 from utils.envs import get_four_rooms
 from utils.misc_utils import get_star, entropy_fn, get_dpi, get_pi, kl_fn, get_value, ppo_loss, ppo, pg_loss, \
     is_prob_mass, pg_clip
-from utils.mdp import get_gridworld
+from utils.mdp import get_gridworld, get_shamdp
 
 
 def approx_pi(pi_fn, env):
@@ -77,11 +77,12 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
         # pi_approx, v_approx, pi_stats = pi_approx_fn(pi, adv, d_s)
         kl_star = kl_fn(pi_star, pi, d_star)
         v_gap_star = (env.p0 * (v_star - last_v)).sum()
-        sampled_return = eval_policy(env, pi)
+        # sampled_return = eval_policy(env, pi)
         expected_return = (env.p0 * v).sum()
         stats = {
             "train/return": expected_return,
-            "train/sampled_return": sampled_return,
+            "train/prob_right": pi[0, 0],
+            "train/adv_right": adv[0, 0],
             "train/v_gap_star": v_gap_star,
             "train/entropy": entropy,
             "train/kl_star": kl_star,
@@ -89,21 +90,20 @@ def policy_iteration(env, pi_fn, pi_approx_fn, max_steps=10):
             "train/t": global_step,
             # **pi_stats,
         }
+        config.tb.add_histogram("train/pi", pi, global_step=global_step)
         save_stats(stats, global_step)
         delta = (jnp.linalg.norm(v - last_v))
-        if config.use_kl:
-            condition = kl
-        else:
-            condition = delta
-        eps = config.eps
-        print(delta)
-        # print(v[10] - last_v[10], delta, kl, v_star[10] - v[10])
-        if condition < eps or global_step > max_steps:
+        condition = delta
+        if condition < config.eps or global_step > max_steps:
             print("done")
-            # print(sampled_return - v[10])
             # plot_policy_at_state(pi, action_label=labels, title=title)
             # gridworld_plot_sa(env, pi, f"pi:eta={config.eta:.2f}", log_plot=True, step=global_step)
             # plot_vf(env, v, f"vf:eta={config.eta:.2f}")
+            fig = chain_plot_vf(env, v, title=f"vf:agent:{config.agent}")
+            config.tb.add_figure("train/vf", fig, global_step=global_step)
+
+            fig = chain_plot_sa(env, pi, title=f"pi:agent:{config.agent}")
+            config.tb.add_figure("train/pi", fig, global_step=global_step)
             break
         if not is_prob_mass(pi):
             break
@@ -119,7 +119,8 @@ def save_stats(stats, global_step):
 def main():
     # env = get_gridworld(config.grid_size)
     # env = get_f(config.grid_size)
-    env = get_four_rooms(config.gamma)
+    # env = get_four_rooms(config.gamma)
+    env = get_shamdp(config.horizon, c=config.penalty)
     if config.agent == "ppo":
         pi_approx = approx_pi(ppo_loss, env)
         pi_fn = ppo
