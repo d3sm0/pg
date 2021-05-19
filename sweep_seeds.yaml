@@ -1,10 +1,10 @@
-program: _main.py
+program: main.py
 method: grid
 metric:
-  name: return
+  name: "train/return"
   goal: maximize
 parameters:
   agent:
-    values: [ "ppo", "pg" ]
-  seed:
-    values: [ 984,28,3587,969 ]
+    values: [ "ppo", "pg_clip" ]
+  eta:
+    values: [ 0.01, 0.03, 0.06, 0.09, 0.1, 0.2, 0.3 , 0.5, 0.8, 1. ]
