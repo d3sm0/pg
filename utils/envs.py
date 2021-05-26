@@ -74,27 +74,26 @@ def get_four_rooms(gamma):
 def ascii_to_walls(ascii_room):
     walls = []
     empty = []
+    bomb = []
     for row_idx, r in enumerate(ascii_room):
         for column_idx, c in enumerate(r):
             if c == "#":
                 walls.append((row_idx, column_idx))
+            elif c == "!":
+                bomb.append((row_idx, column_idx))
             else:
                 empty.append((row_idx, column_idx))
-    return walls, empty
+    return walls, empty, bomb
 
 
-def four_rooms_gw(gamma):
+def get_cliff(gamma):
     ascii_room = """
-    ##########
-    # # #    #
-    # #     ##
-    #   #    #
-    #     #  #
-    #   ##   #
-    # ##    ##
-    # #  # # #
-    #   #    #
-    ##########"""[1:].split('\n')
+    #######
+    # !!! # 
+    #     # 
+    #     # 
+    #     #
+    #######"""[1:].split('\n')
 
     ascii_room = [row.strip() for row in ascii_room]
     # a = list(ascii_room[goal[0]])
@@ -104,10 +103,54 @@ def four_rooms_gw(gamma):
     char_matrix = get_char_matrix(ascii_room)
 
     grid_size = len(char_matrix[0])
+    reward_spec = {(1, grid_size - 2): +1}
+    builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=grid_size, has_terminal_state=False)
+
+    R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
+    walls, empty_, bomb = ascii_to_walls(char_matrix)  # hacks
+    empty = []
+    for e in empty_:
+        (e,), = flatten_state(e, grid_size, grid_size * grid_size).nonzero()
+        # R[e, :] = -1
+        empty.append(e)
+    builder.add_grid(p_success=1, terminal_states=[(1, grid_size - 2)])
+    for (r, c) in walls:
+        builder.add_wall_at((r, c))
+    P = builder.P
+    for (r, c) in bomb:
+        idx = grid_size * r + c
+        R[idx, :] = -100
+        # R[idx, 1] = -100
+        P[idx, :, :] = 0
+        P[idx, :, 8] = 1
+    p0 = np.zeros(R.shape[0])
+    p0[grid_size + 2] = 1.
+    # p0[empty] = 1 / len(empty)
+    gw = GridWorldMDP(P, R, gamma, p0, terminal_states=[(1, grid_size - 2)], size=builder.grid_size)
+    return gw
+
+
+def four_rooms_gw(gamma):
+    ascii_room = """
+    ##########
+    # ! !    #
+    # !  #  !#
+    #   !    #
+    ###   !  #
+    #   !!   #
+    # !!    !#
+    # !  ! ! #
+    #   !    #
+    ##########"""[1:].split('\n')
+
+    ascii_room = [row.strip() for row in ascii_room]
+    char_matrix = get_char_matrix(ascii_room)
+
+    grid_size = len(char_matrix[0])
     reward_spec = {(grid_size - 2, grid_size - 2): +1}
     builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=grid_size, has_terminal_state=False)
 
-    walls, empty_ = ascii_to_walls(char_matrix)  # hacks
+    walls, empty_, bomb = ascii_to_walls(char_matrix)  # hacks
     empty = []
     for e in empty_:
         (e,), = flatten_state(e, grid_size, grid_size * grid_size).nonzero()
@@ -117,8 +160,10 @@ def four_rooms_gw(gamma):
         builder.add_wall_at((r, c))
 
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
+    for b in bomb:
+        idx = grid_size * b[0] + b[1]
+        R[idx, :] = -10
     p0 = np.zeros(R.shape[0])
     p0[11] = 1.
-    #p0[empty] = 1 / len(empty)
     gw = GridWorldMDP(builder.P, R, gamma, p0, terminal_states=[(grid_size - 2, grid_size - 2)], size=builder.grid_size)
     return gw
