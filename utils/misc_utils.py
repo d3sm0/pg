@@ -7,6 +7,8 @@ from jax import numpy as jnp
 
 import config
 
+import haiku as hk
+
 
 def v_iteration(env, n_iterations=1000):
     v = jnp.zeros(env.state_space)
@@ -43,10 +45,10 @@ def get_dpi(env, pi):
 
 
 @jax.partial(jax.jit, static_argnums=(0,))
-def get_q_value(env, pi):
+def get_q_value(env, pi, v):
     v = get_value(env, pi)
-    v_pi = jnp.einsum('xay,y->xa', env.P, v)
-    q = env.R + env.gamma * v_pi
+    q_pi = jnp.einsum('xay,y->xa', env.P, v)
+    q = env.R + env.gamma * q_pi
     return q
 
 
@@ -67,7 +69,7 @@ def kl_fn(weight, p, q):
 def softmax_ppo(pi, adv, eta, clip=1e-3):
     # This number might be negative
     pi = pi * (1 + eta * adv)
-    #if not is_prob_mass(pi):
+    # if not is_prob_mass(pi):
     pi = jnp.clip(pi, a_min=clip)
     pi = pi / pi.sum(1, keepdims=True)
     return pi
@@ -76,11 +78,10 @@ def softmax_ppo(pi, adv, eta, clip=1e-3):
 # TODO implement safe exp
 @jax.jit
 def mdpo(pi, adv, eta):
-    pi = pi.clone()
     pi = pi * (jnp.exp(eta * adv))
     denom = pi.sum(1, keepdims=True)
     pi = pi / denom
-    assert (denom >= 1 - 1e-4).all()
+    # assert (denom >= 1 - 1e-4).all()
     return pi
 
 
@@ -103,29 +104,43 @@ def entropy_fn(env, pi):
     return out
 
 
-def sample_value(env, pi, key_gen):
+key_gen = hk.PRNGSequence(0)
+
+
+def sample_value(env, pi, n_samples):
+    vs = []
+    for _ in range(n_samples):
+        v = _sample_value(env, pi)
+        vs.append(v)
+    return jnp.stack(vs, 0).mean(0)
+
+
+def _sample_value(env, pi):
     s = env.reset()
+    state_idx = s.argmax()
     total_return = 0
     for t in itertools.count():
         p = jnp.einsum("s, sa->a", s, pi)
         action = jax.random.choice(key=next(key_gen), a=env.action_space, p=p).item()
         s, r, done, info = env.step(action)
         total_return += (env.gamma ** t) * r
-        if done:
+        if done or t > 1e2:
             break
-    return total_return
+    v_hat = np.zeros(env.state_space)
+    v_hat[state_idx] = total_return
+    return jnp.array(v_hat)/ (1 - env.gamma)
 
 
 # TODO refactor this taking pi and jit everything
 def improve_pi(env, pi_old, pi_fn, eta):
-    pi = pi_old.clone()
+    pi = pi_old
     _adv, v_k = get_adv(env, pi_old)
     pi = pi_fn(pi, _adv, eta)
     v_kp1 = get_value(env, pi)
     kl = kl_fn(get_dpi(env, pi), pi, pi_old)
 
     stats = {
-        "pi/delta_v": jnp.linalg.norm(v_k - v_kp1),
+        "pi/delta_v": (env.p0 @ (v_kp1 - v_k)),
         "pi/return": (env.p0 @ v_kp1),
         "pi/kl": kl
     }
@@ -133,8 +148,9 @@ def improve_pi(env, pi_old, pi_fn, eta):
 
 
 def get_adv(env, pi):
-    v_k = get_value(env, pi)
-    q = get_q_value(env, pi)
+    # v_k = get_value(env, pi)
+    v_k = sample_value(env, pi, n_samples=10)
+    q = get_q_value(env, pi, v_k)
     d_s = get_dpi(env, pi)
     adv = q - jnp.expand_dims(v_k, 1)
     if config.use_fa:
@@ -186,15 +202,17 @@ def policy_iteration(env, pi_opt, eta, stop_criterion):
     value = jnp.zeros(shape=env.state_space)
     for step in itertools.count():
         policy, value, stats = improve_pi(env, policy, pi_opt, eta=eta)
+        print(stats)
         data.append((policy, value))
         save_stats(stats, global_step=step)
         if stop_criterion(step) or not is_prob_mass(policy):
             break
+        print()
     pis, vs = list(map(lambda x: jnp.stack(x, 0), list(zip(*data))))
     return policy, value, pis, vs
 
 
-def approx_policy_iteration(env, pi_fn, stop_criterion):
+def approx_policy_iteration(env, pi_fn, stop_criterion, write_stats=False):
     policy = init_pi(env)
     data = []
     value = jnp.zeros(shape=env.state_space)
@@ -203,7 +221,8 @@ def approx_policy_iteration(env, pi_fn, stop_criterion):
         d_s = get_dpi(env, policy)
         policy, value, stats = pi_fn(policy, adv, d_s)
         data.append((policy, value))
-        save_stats(stats, global_step=step)
+        if write_stats:
+            save_stats(stats, global_step=step)
         if stop_criterion(step) or not is_prob_mass(policy):
             break
     pis, vs = list(map(lambda x: jnp.stack(x, 0), list(zip(*data))))

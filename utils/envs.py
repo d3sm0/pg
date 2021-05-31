@@ -9,6 +9,8 @@ from emdp.gridworld.txt_utilities import get_char_matrix  # , ascii_to_walls
 from jax import numpy as jnp
 import numpy as np
 
+import config
+
 
 def two_states_gw():
     builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=3, has_terminal_state=False)
@@ -151,7 +153,7 @@ def four_rooms_gw(gamma):
     for e in empty_:
         (e,), = flatten_state(e, grid_size, grid_size * grid_size).nonzero()
         empty.append(e)
-    builder.add_grid(p_success=1, terminal_states=[(grid_size - 2, grid_size - 2)])
+    builder.add_grid(p_success=config.mask_prob, terminal_states=[(grid_size - 2, grid_size - 2)])
     for (r, c) in walls:
         builder.add_wall_at((r, c))
     for r, c in bomb:
