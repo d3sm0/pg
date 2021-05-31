@@ -1,4 +1,5 @@
 import itertools
+# TODO plot movement on the simplex
 
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ ax.imshow(adv.T, alpha=0.8)
 for r in range(s):
     for c in range(a):
         ax.text(r, c, f"{adv[r, c]:.2f}", color='w', va='center', ha='center')
-ax.text(20,0, f"{adv[20, 0]:.2f}",color='r', va='center', ha='center')
+ax.text(20, 0, f"{adv[20, 0]:.2f}", color='r', va='center', ha='center')
 
 ax.set_xticks(np.arange(s))
 ax.set_yticks(np.arange(a))

@@ -99,4 +99,5 @@ def eval_policy(env, pi):
         s, r, done, info = env.step(action)
         total_return += (env.gamma ** t) * r
         t += 1
-    return total_return/(1-env.gamma)
+    return total_return / (1 - env.gamma)
+
