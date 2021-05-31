@@ -5,7 +5,7 @@ import config
 from experiments.plot_fn import gridworld_plot_sa, plot_policy_at_state, plot_vf, chain_plot_sa, chain_plot_vf
 from utils.mdp import get_gridworld, get_shamdp
 from utils.envs import get_four_rooms, get_cliff
-from utils.misc_utils import ppo, get_star, pg_clip, policy_iteration, pg
+from utils.misc_utils import mdpo, get_star, softmax_ppo, policy_iteration, pg
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
     # labels = ["left", "right", "up", "down"]
     pi_star, _, _, v_star = get_star(env)
     # agents = {"pg_clip": pg_clip, "ppo"} #, "ppo": ppo}  # "ppo": ppo, "pg": pg}
-    agents = {"pg_clip": pg_clip, "ppo": ppo}  # , "ppo": ppo}  # "ppo": ppo, "pg": pg}
+    agents = {"pg_clip": softmax_ppo, "ppo": mdpo}  # , "ppo": ppo}  # "ppo": ppo, "pg": pg}
     # fig, axs = plt.subplots(3, 1, figsize=(12, 6))
     # axs = axs.flatten()
     # plot_idx = 0

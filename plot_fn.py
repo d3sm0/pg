@@ -1,43 +1,9 @@
 import os
 
-import jax
 import jax.numpy as np
 import matplotlib.pyplot as plt
-from jax import numpy as jnp
 
 import config
-
-
-def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=False, step=None):
-    if ax is None:
-        ax = plt.gca()
-
-    x0, x1, y0, y1 = frame
-    vf = vf.reshape(env.size, env.size)
-    num_cols, num_rows = vf.shape
-
-    tag = f"plots/{title}"
-    title = f"{title}_{vf.max():.5f}"
-
-    ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
-
-    ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
-    ax.set_ylim((y0 - 0.5, num_rows - y1 - 0.5)[::-1])
-
-    ax.set_xticks(np.arange(x0, num_cols - x1, 1))
-    ax.xaxis.set_tick_params(labelsize=5)
-    ax.set_yticks(np.arange(y0, num_rows - y1, 1))
-    ax.yaxis.set_tick_params(labelsize=5)
-
-    img = ax.imshow(vf, origin='lower', cmap='viridis')
-
-    ax.set_aspect(1)
-    plt.savefig(tag.replace(".", "_"))
-    if log_plot:
-        assert step is not None
-        config.tb.plot(tag, plt, step)
-        plt.clf()
-    return img
 
 
 def chain_plot_vf(env, vf, title=None, label=None, ax=None):
@@ -53,51 +19,12 @@ def chain_plot_vf(env, vf, title=None, label=None, ax=None):
 
 
 def chain_plot_params(env, data, title, ax=None):
-    # direction = [
-    #    np.array((-1, 0)),  # left
-    #    np.array((1, 0)),  # right
-    # ]
-
-    # x, y = np.meshgrid(np.arange(env.size), np.arange(env.size))
-    # x, y = x.flatten(), y.flatten()
-    fig = None
     if ax is None:
         fig, ax = plt.subplots(1, 1)
     ax.scatter(np.arange(env.action_space), data.squeeze())
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
     ax.set_xlabel("actions")
     ax.set_ylabel("p(a)")
-    return fig
-    # ax.imshow(data.T)
-    # ax.set_ylabel("prob(right|s)")
-
-    # for base, a in zip(direction, range(num_actions)):
-    #    quivers = np.einsum("d,m->md", base, data[:, a])
-
-    #    pos = data[:, a] > 0
-    #    ax.quiver(x[pos], 2, *quivers[pos].T, units='xy', scale=2.0, color='g')
-
-    #    pos = data[:, a] < 0
-    #    ax.quiver(x[pos], 2, *-quivers[pos].T, units='xy', scale=2.0, color='r')
-
-    # x0, x1, y0, y1 = frame
-    # set axis limits / ticks / etc... so we have a nice grid overlay
-    # ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
-    # ax.set_ylim((y0 - 0.5, num_rows - y1 - 0.5)[::-1])
-
-    # ax.set_xticks(np.arange(x0, num_cols - x1, 1))
-    # ax.xaxis.set_tick_params(labelsize=5)
-    # ax.set_yticks(np.arange(y0, num_rows - y1, 1))
-    # ax.yaxis.set_tick_params(labelsize=5)
-
-    # minor ticks
-    # ax.set_xticks(np.arange(*ax.get_xlim(), 1), minor=True)
-    # ax.set_yticks(np.arange(*ax.get_ylim()[::-1], 1), minor=True)
-
-    # ax.grid(which='minor', color='gray', linestyle='-', linewidth=1)
-    # ax.set_aspect(1)
-
-    # tag = f"plots/{title}"
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
     # if log_plot:
     #    plt.savefig(tag.replace(".", "_"))
@@ -107,57 +34,13 @@ def chain_plot_params(env, data, title, ax=None):
 
 
 def chain_plot_sa(env, data, title, ax=None, label=None):
-    # direction = [
-    #    np.array((-1, 0)),  # left
-    #    np.array((1, 0)),  # right
-    # ]
-
-    # x, y = np.meshgrid(np.arange(env.size), np.arange(env.size))
-    # x, y = x.flatten(), y.flatten()
     fig = None
     if ax is None:
         fig, ax = plt.subplots(1, 1)
     ax.plot(data[:, 0], label=label)
-    # ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
     ax.set_xlabel("states")
     ax.set_ylabel("p(right)")
     return fig
-    # ax.imshow(data.T)
-    # ax.set_ylabel("prob(right|s)")
-
-    # for base, a in zip(direction, range(num_actions)):
-    #    quivers = np.einsum("d,m->md", base, data[:, a])
-
-    #    pos = data[:, a] > 0
-    #    ax.quiver(x[pos], 2, *quivers[pos].T, units='xy', scale=2.0, color='g')
-
-    #    pos = data[:, a] < 0
-    #    ax.quiver(x[pos], 2, *-quivers[pos].T, units='xy', scale=2.0, color='r')
-
-    # x0, x1, y0, y1 = frame
-    # set axis limits / ticks / etc... so we have a nice grid overlay
-    # ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
-    # ax.set_ylim((y0 - 0.5, num_rows - y1 - 0.5)[::-1])
-
-    # ax.set_xticks(np.arange(x0, num_cols - x1, 1))
-    # ax.xaxis.set_tick_params(labelsize=5)
-    # ax.set_yticks(np.arange(y0, num_rows - y1, 1))
-    # ax.yaxis.set_tick_params(labelsize=5)
-
-    # minor ticks
-    # ax.set_xticks(np.arange(*ax.get_xlim(), 1), minor=True)
-    # ax.set_yticks(np.arange(*ax.get_ylim()[::-1], 1), minor=True)
-
-    # ax.grid(which='minor', color='gray', linestyle='-', linewidth=1)
-    # ax.set_aspect(1)
-
-    # tag = f"plots/{title}"
-    ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
-    # if log_plot:
-    #    plt.savefig(tag.replace(".", "_"))
-    #    assert step is not None
-    #    config.tb.plot(tag, plt, step)
-    #    plt.clf()
 
 
 def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None, log_plot=False):
@@ -218,23 +101,50 @@ def gridworld_plot_sa(env, data, title, ax=None, frame=(0, 0, 0, 0), step=None, 
         plt.clf()
 
 
-def plot_policy_at_state(pi, action_label, title, ax=None,log_plot = False, step=None):
+def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=False, step=None):
+    if ax is None:
+        ax = plt.gca()
+
+    x0, x1, y0, y1 = frame
+    vf = vf.reshape(env.size, env.size)
+    num_cols, num_rows = vf.shape
+
+    tag = f"plots/{title}"
+    title = f"{title}_{vf.max():.5f}"
+
+    ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
+
+    ax.set_xlim((x0 - 0.5, num_cols - x1 - 0.5))
+    ax.set_ylim((y0 - 0.5, num_rows - y1 - 0.5)[::-1])
+
+    ax.set_xticks(np.arange(x0, num_cols - x1, 1))
+    ax.xaxis.set_tick_params(labelsize=5)
+    ax.set_yticks(np.arange(y0, num_rows - y1, 1))
+    ax.yaxis.set_tick_params(labelsize=5)
+
+    img = ax.imshow(vf, origin='lower', cmap='viridis')
+
+    ax.set_aspect(1)
+    plt.savefig(tag.replace(".", "_"))
+    if log_plot:
+        assert step is not None
+        config.tb.plot(tag, plt, step)
+        plt.clf()
+    return img
+
+
+def plot_policy_at_state(pi, action_label, title, ax=None, log_plot=False, step=None):
     if ax is None:
         ax = plt.gca()
 
     pi = pi.flatten()
-    # major ticks
-    # ax.hist(np.arange(len(action_label)), weights=pi.flatten())
-    ax.scatter(np.arange(len(action_label)), pi)
+
     for i in range(len(action_label)):
         ax.annotate(f"{pi[i]:.3f}", (i, pi[i]))
 
     ax.set_xticks(np.arange(len(action_label)), action_label)
-    # ax.xaxis.set_tick_params(labelsize=5)
 
-    # ax.grid(which='minor', color='gray', linestyle='-', linewidth=1)
     ax.grid(True)
-    # ax.set_aspect(1)
 
     ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
     if log_plot:
@@ -242,7 +152,6 @@ def plot_policy_at_state(pi, action_label, title, ax=None,log_plot = False, step
         assert step is not None
         config.tb.plot(title, plt, step)
         plt.clf()
-
 
 
 def make_gif(prefix="pi"):
