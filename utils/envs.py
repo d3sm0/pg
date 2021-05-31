@@ -96,9 +96,6 @@ def get_cliff(gamma):
     #######"""[1:].split('\n')
 
     ascii_room = [row.strip() for row in ascii_room]
-    # a = list(ascii_room[goal[0]])
-    # a[goal[1]] = "g"
-    # ascii_room[goal[0]] = "".join(a)
 
     char_matrix = get_char_matrix(ascii_room)
 
@@ -119,11 +116,7 @@ def get_cliff(gamma):
     P = builder.P
     for (r, c) in bomb:
         idx = grid_size * r + c
-        R[idx, 0] = -100  # left
-        R[idx, 1] = -100  # rigth
-        R[idx, 2] = -100  # up
-        R[idx, 3] = -100  # down
-        # R[idx, 1] = -100
+        R[idx, :] = -100
         P[idx, :, :] = 0
         P[idx, :, 8] = 1
     p0 = np.zeros(R.shape[0])
