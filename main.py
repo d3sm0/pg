@@ -28,7 +28,8 @@ def train_approx(env):
 
 
 def main():
-    env = get_gridworld(config.grid_size)
+    # env = get_gridworld(config.grid_size)
+    env = get_four_rooms(config.gamma)
     # env = get_cliff(config.gamma)
     # env = get_shamdp(config.horizon, c=config.penalty)
     # env = get_four_rooms(config.gamma)
