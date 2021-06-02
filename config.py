@@ -7,14 +7,14 @@ horizon = 6 if use_fa else 20
 penalty = 0.15 if use_fa else 1.4  # 1.6
 eps = 1e-4
 gamma = 0.9
-eta = 0.01
+eta = 0.1
 grid_size = 10
-opt_epochs = 10
+opt_epochs = 5
 agent = "pg_clip"
 save_interval = 10
 max_steps = int(1e3)
 seed = 984
-lr = 1.
+lr = 1e-2
 
 REMOTE = 1
 RUN_SWEEP = REMOTE

@@ -225,7 +225,7 @@ def approx_improve_pi(env, pi_fn, iterations=10):
         v_old = eval_pi(pi)
         for t in range(iterations):
             loss, grad = d_loss(pi, pi_old, d_s, adv)
-            pi = jnp.log(pi) + config.lr * grad
+            pi = pi + config.lr * grad
             pi = jax.nn.softmax(pi)
         v = eval_pi(pi)
         d_s = get_dpi(env, pi)
