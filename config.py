@@ -11,23 +11,25 @@ eta = 0.01
 grid_size = 3
 opt_epochs = 10
 agent = "pg_clip"
+env_id = "cliff"
 save_interval = 10
-max_steps =  int(10)
 seed = 984
 lr = 1.
+shift = 1.
 mask_prob = 0.8
 
-REMOTE = 0
+REMOTE = 1
 RUN_SWEEP = REMOTE
 NUM_PROCS = 5
-sweep_yaml = "experiments/sweep.yaml" if RUN_SWEEP else False
+sweep_yaml = "experiments/sweep_seeds.yaml" if RUN_SWEEP else False
 HOST = "mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
+max_steps =  int(10) if DEBUG else int(2e3)
 
 render = not DEBUG
 experiment_buddy.register(locals())
 tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, proc_num=NUM_PROCS,
-                             wandb_kwargs=dict(mode="disabled")) # if DEBUG else "online")
+                             wandb_kwargs=dict(mode="online")) # "disabled" if DEBUG else "online"))
 
 
 plot_path = os.path.join(tb.objects_path, "plots")
