@@ -1,0 +1,12 @@
+program: main.py
+method: grid
+metric:
+  name: "pi/return"
+  goal: maximize
+parameters:
+  eta:
+    values: [ 0.1, 0.5, 1., 1.5, 2., 2.5, 3., 3.5 ]
+  opt_epochs:
+    values: [ 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 ]
+  lr:
+    values: [ 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1. ]
