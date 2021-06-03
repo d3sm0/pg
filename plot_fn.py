@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import config
 
 
-def chain_plot_vf(env, vf, title=None, label=None, ax=None):
+def chain_plot_vf(vf, label=None, ax=None):
     fig = None
     if ax is None:
         fig, ax = plt.subplots(1, 1)
     # ax.scatter(np.arange(env.state_space), vf, label=label)
     ax.plot(vf, 'o', label=label)
     ax.set_xlabel('state_idx')
-    ax.set_vlabel('v(s)')
+    ax.set_ylabel('v(s)')
     # ax.set_title(title, fontdict={'fontsize': 8, 'fontweight': 'medium'})
     return fig
 
@@ -125,12 +125,11 @@ def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=False, step=No
     img = ax.imshow(vf, origin='lower', cmap='viridis')
 
     ax.set_aspect(1)
-    plt.savefig(tag.replace(".", "_"))
     if log_plot:
         assert step is not None
+        plt.savefig(tag.replace(".", "_"))
         config.tb.plot(tag, plt, step)
         plt.clf()
-    return img
 
 
 def plot_policy_at_state(pi, action_label, title, ax=None, log_plot=False, step=None):
