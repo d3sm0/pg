@@ -4,9 +4,13 @@ metric:
   name: return
   goal: maximize
 parameters:
-  agent:
-    values: [ "pg", "ppo", "pg_clip" ]
+  agent_id:
+    values: [ "mdpo", "softmax_ppo" ]
+  env_id:
+    values: [ "cliff" ]
   eta:
-    values: [ 0.01, 0.03, 0.06, 0.09, 0.1, 0.2, 0.3 , 0.5, 0.8, 1. ]
+    values: [ 0.01      , 0.06444444, 0.11888889, 0.17333333, 0.22777778,
+        0.28222222, 0.33666667, 0.39111111, 0.44555556, 0.5
+    ]
 
 
