@@ -125,6 +125,10 @@ def get_cliff(gamma):
     p0[flatten_state((1, 1), grid_size, grid_size * grid_size).nonzero()] = 1.
     # p0[empty] = 1 / len(empty)
     gw = GridWorldMDP(P, R, gamma, p0, terminal_states=[(1, grid_size - 2)], size=builder.grid_size)
+    # idx  = grid_size * 2 + grid_size - 2
+    # R[idx, :] = 1.
+    # reward change action up
+    # R[idx, 2] = 1/config.gamma ** 3
     return gw
 
 
@@ -145,7 +149,7 @@ def four_rooms_gw(gamma):
     char_matrix = get_char_matrix(ascii_room)
 
     grid_size = len(char_matrix[0])
-    reward_spec = {(grid_size - 2, grid_size - 2): +1}
+    reward_spec = {(grid_size - 2, grid_size - 2): 1}
     builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=grid_size, has_terminal_state=False)
 
     walls, empty_, bomb = ascii_to_walls(char_matrix)  # hacks
@@ -153,15 +157,18 @@ def four_rooms_gw(gamma):
     for e in empty_:
         (e,), = flatten_state(e, grid_size, grid_size * grid_size).nonzero()
         empty.append(e)
-    builder.add_grid(p_success=config.mask_prob, terminal_states=[(grid_size - 2, grid_size - 2)])
+    builder.add_grid(p_success=1., terminal_states=[(grid_size - 2, grid_size - 2)])
     for (r, c) in walls:
         builder.add_wall_at((r, c))
     for r, c in bomb:
         builder.add_wall_at((r, c))
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
-    #for b in bomb:
-        # idx = grid_size * b[0] + b[1]
-        # R[idx, :] = -10
+    P =builder.P
+    for b in bomb:
+        idx = grid_size * b[0] + b[1]
+        R[idx, :] = -10
+        P[idx, :, :] = 0
+        P[idx, :, grid_size + 1] = 1
     p0 = np.zeros(R.shape[0])
     p0[grid_size + 1] = 1
     gw = GridWorldMDP(builder.P, R, gamma, p0, terminal_states=[(grid_size - 2, grid_size - 2)], size=builder.grid_size)
