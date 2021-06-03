@@ -102,7 +102,7 @@ def get_cliff(gamma):
     char_matrix = get_char_matrix(ascii_room)
 
     grid_size = len(char_matrix[0])
-    reward_spec = {(1, grid_size - 2): 1}
+    reward_spec = {(1, grid_size - 2): 0}
     builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=grid_size, has_terminal_state=False)
 
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
@@ -110,7 +110,7 @@ def get_cliff(gamma):
     empty = []
     for e in empty_:
         (e,), = flatten_state(e, grid_size, grid_size * grid_size).nonzero()
-        # R[e, :] = -1
+        R[e, :] = -1
         empty.append(e)
     builder.add_grid(p_success=1, terminal_states=[(1, grid_size - 2)])
     for (r, c) in walls:
@@ -145,7 +145,7 @@ def four_rooms_gw(gamma):
     char_matrix = get_char_matrix(ascii_room)
 
     grid_size = len(char_matrix[0])
-    reward_spec = {(grid_size - 2, grid_size - 2): +1}
+    reward_spec = {(grid_size - 2, grid_size - 2): 0}
     builder = emdp.gridworld.builder_tools.TransitionMatrixBuilder(grid_size=grid_size, has_terminal_state=False)
 
     walls, empty_, bomb = ascii_to_walls(char_matrix)  # hacks
