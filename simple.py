@@ -12,7 +12,6 @@ from utils.misc_utils import mdpo, get_star, softmax_ppo, policy_iteration
 def main():
     # env = get_shamdp(horizon=config.horizon, c=config.penalty)
     env = get_gridworld(grid_size=config.grid_size, gamma=config.gamma)
-    # env = get_cliff(gamma=config.gamma)
 
     # env = get_cliff(gamma=config.gamma)
     def stop_criterion(t):
@@ -20,10 +19,10 @@ def main():
 
     pi_star, _, _, v_star = get_star(env)
     # "pg_clip": softmax_ppo, "ppo": mdpo}  # , "ppo": ppo}  # "ppo": ppo, "pg": pg}
-    agent = "pg_clip"; agent_fn = softmax_ppo; eta = 0.1
-    #agent = "ppo"; agent_fn = mdpo; eta = 0.5
-
-    fig, ax = plt.subplots(1, 1)
+    agent = "pg_clip"; agent_fn = softmax_ppo
+    agent = "ppo"; agent_fn = mdpo
+    etas = np.linspace(0., 3., 9)
+    fig, ax = plt.subplots(3, 3)
     # axs = axs.flatten()
     agent_idx = 0
     # for agent, agent_fn in agents.items():

@@ -125,12 +125,11 @@ def plot_vf(env, vf, title, frame=(0, 0, 0, 0), ax=None, log_plot=False, step=No
     img = ax.imshow(vf, origin='lower', cmap='viridis')
 
     ax.set_aspect(1)
-    plt.savefig(tag.replace(".", "_"))
     if log_plot:
         assert step is not None
+        plt.savefig(tag.replace(".", "_"))
         config.tb.plot(tag, plt, step)
         plt.clf()
-    return img
 
 
 def plot_policy_at_state(pi, action_label, title, ax=None, log_plot=False, step=None):
