@@ -94,14 +94,19 @@ def get_gridworld(grid_size, gamma):
     first set the probability of all actions from state 3 to zero
     now set the probability of going from 3 to 13 with prob 1 for all actions
     """
-
-    P = gw.build_simple_grid(size=grid_size, p_success=1.0, terminal_states=[(grid_size - 1, grid_size - 1)])
+    # maybe just assign depending on how you arrive
+    P = gw.build_simple_grid(size=grid_size, p_success=1.0, terminal_states=[
+        (grid_size - 1, grid_size - 2), (grid_size - 2, grid_size - 1)
+    ])
     n_states, n_actions = P.shape[:2]
     R = np.zeros((n_states, n_actions))
-    idx = idx_to_grid(grid_size - 1, grid_size - 1, grid_size)
-    assert idx < R.shape[0]
+    idx_g = idx_to_grid(grid_size - 1, grid_size - 2, grid_size)
+    idx_y = idx_to_grid(grid_size - 2, grid_size - 1, grid_size)
+    # assert idx < R.shape[0]
     # R[:, :] = -1.
-    R[idx, :] = 1.
+    #R[idx_g, 0] = 1.
+    #R[idx_g, 1] = 0.99
+    #R[idx_y, :] = 0.99
     p0 = np.zeros(n_states)
     p0[0] = 1.
     terminal_states = [(grid_size - 1, grid_size - 1)]
