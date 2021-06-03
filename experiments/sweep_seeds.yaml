@@ -4,9 +4,12 @@ metric:
   name: return
   goal: maximize
 parameters:
-  agent:
-    values: [ "pg", "ppo", "pg_clip" ]
-  eta:
-    values: [ 0.01, 0.03, 0.06, 0.09, 0.1, 0.2, 0.3 , 0.5, 0.8, 1. ]
+  agent_id:
+    values: [ "mdpo", "softmax_ppo" ]
+  env_id:
+    values: [ "frozen", "cliff" ]
+  shift:
+    values: [ 0.01, 0.16736842, 0.32473684, 0.48210526, 0.63947368,
+              0.79684211, 0.95421053, 1.0]
 
 
