@@ -58,16 +58,19 @@ def kl_fn(weight, p, q):
     return jnp.clip(_kl, 0.)
 
 
-# TODO implement linesearch here
-# def pg(pi, adv, eta):
-#    pi = pi * (1 + eta * adv)
-#    pi = pi / pi.sum(1, keepdims=True)
-#    return pi
+def line_search(pi, adv, eta_0, step_size):
+    eta = eta_0
+    while True:
+        pi_new = softmax_ppo(pi, adv, eta)
+        if not is_prob_mass(pi_new):
+            eta = eta - step_size
+            break
+        eta = eta + step_size
+    return eta
 
 
 @jax.jit
-def softmax_ppo(pi, adv, eta, clip=1e-3):
-    # This number might be negative
+def softmax_ppo(pi, adv, eta, clip=0.):
     pi = pi * (1 + eta * adv)
     # if not is_prob_mass(pi):
     pi = jnp.clip(pi, a_min=clip)
@@ -128,7 +131,7 @@ def _sample_value(env, pi):
             break
     v_hat = np.zeros(env.state_space)
     v_hat[state_idx] = total_return
-    return jnp.array(v_hat)/ (1 - env.gamma)
+    return jnp.array(v_hat) / (1 - env.gamma)
 
 
 # TODO refactor this taking pi and jit everything
@@ -148,8 +151,7 @@ def improve_pi(env, pi_old, pi_fn, eta):
 
 
 def get_adv(env, pi):
-    # v_k = get_value(env, pi)
-    v_k = sample_value(env, pi, n_samples=10)
+    v_k = get_value(env, pi)
     q = get_q_value(env, pi, v_k)
     d_s = get_dpi(env, pi)
     adv = q - jnp.expand_dims(v_k, 1)
@@ -196,18 +198,28 @@ def init_pi(env):
     return pi
 
 
-def policy_iteration(env, pi_opt, eta, stop_criterion):
-    policy = init_pi(env)
+def policy_iteration(env, pi_opt, eta, stop_criterion, policy=None):
+    if policy is None:
+        policy = init_pi(env)
     data = []
-    value = jnp.zeros(shape=env.state_space)
-    for step in itertools.count():
+    value = get_value(env, policy)
+    stats = {"pi/return": env.p0 @ value}
+    prob_down = policy[env.p0.argmax(), 3]
+    prob_right = policy[env.p0.argmax(), 1]
+    stats["pi/prob_down"] = prob_down
+    stats["pi/prob_right"] = prob_right
+    save_stats(stats, global_step=0)
+    for step in itertools.count(1):
         policy, value, stats = improve_pi(env, policy, pi_opt, eta=eta)
-        print(stats)
         data.append((policy, value))
+        # if should_save_stats:
+        prob_down = policy[env.p0.argmax(), 3]
+        prob_right = policy[env.p0.argmax(), 1]
+        stats["pi/prob_down"] = prob_down
+        stats["pi/prob_right"] = prob_right
         save_stats(stats, global_step=step)
         if stop_criterion(step) or not is_prob_mass(policy):
             break
-        print()
     pis, vs = list(map(lambda x: jnp.stack(x, 0), list(zip(*data))))
     return policy, value, pis, vs
 
