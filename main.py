@@ -1,15 +1,12 @@
 import jax.nn
 import jax.numpy as jnp
-# TODO experiment with cliff + linesearch
-# TODO experiment with different initialization
-# TODO experiment with chain + different eta
-from plot_fn import plot_vf, gridworld_plot_sa, plot_policy_at_state, chain_plot_vf
-from utils.envs import get_cliff, get_four_rooms
-import utils.misc_utils
-from utils.mdp import get_gridworld, get_shamdp
-import matplotlib.pyplot as plt
 import numpy as np
+
 import config
+import utils.misc_utils
+from plot_fn import plot_vf, gridworld_plot_sa
+from utils.envs import get_cliff, get_four_rooms
+from utils.mdp import get_shamdp
 
 
 def train(env, pi_fn):
@@ -20,21 +17,12 @@ def train(env, pi_fn):
     pi = np.ones(shape=(env.state_space, env.action_space))
     pi_star, v_star = utils.misc_utils.get_star(env)
     master_key = jax.random.PRNGKey(config.seed)
-    a_offset, b_offset = jax.random.uniform(jax.random.split(master_key)[1], shape=(2,), minval=5., maxval=10.)
+    # a_offset, b_offset = jax.random.uniform(jax.random.split(master_key)[1], shape=(2,), minval=5., maxval=10.)
 
-    pi[env.p0.argmax(), 1] += a_offset
-    pi = pi.reshape((7, 7, 4))
-    pi[2, 1:5, 2] += b_offset
-    pi = pi.reshape((-1, 4))
-    print(env.p0 @ v_star, pi_star[0, 0])
     pi /= pi.sum(1, keepdims=True)
     policy = jnp.array(pi)
-    print(pi[env.p0.argmax()])
     gridworld_plot_sa(env, pi, f"pi={config.agent_id}:eta={config.eta:.2f}", log_plot=False, step=config.max_steps + 1)
     pi, v, *_ = utils.misc_utils.policy_iteration(env, pi_opt=pi_fn, stop_criterion=cb, eta=config.eta, policy=policy)
-    # chain_plot_vf(v, title=f"vf={config.agent_id}:{env.p0 @ v}", log_plot=True, step=config.max_steps + 1)
-
-    # plot_policy_at_state(pi, action_label=labels, title=title)
     plot_vf(env, v, f"vf={config.agent_id}:eta={config.eta:.2f}", log_plot=True, step=config.max_steps + 1)
     gridworld_plot_sa(env, pi, f"pi={config.agent_id}:eta={config.eta:.2f}", log_plot=True, step=config.max_steps + 1)
 

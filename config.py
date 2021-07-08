@@ -17,19 +17,19 @@ seed = 984
 mask_prob = 1.
 lr = 1.
 shift = 0.95
+max_steps = int(3e3)
 
-REMOTE = 1
+
+experiment_buddy.register(locals())
+REMOTE = 0
 RUN_SWEEP = REMOTE
 NUM_PROCS = 5
 sweep_yaml = "experiments/sweep_seeds.yaml" if RUN_SWEEP else False
-HOST = "mila" if REMOTE else ""  # in host
+HOST = "" #j"mila" if REMOTE else ""  # in host
 DEBUG = '_pydev_bundle.pydev_log' in sys.modules.keys()
-max_steps = int(3e3)
+tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, proc_num=NUM_PROCS, wandb_kwargs=dict(mode="online"))
 
-render = not DEBUG
-experiment_buddy.register(locals())
-tb = experiment_buddy.deploy(host=HOST, sweep_yaml=sweep_yaml, proc_num=NUM_PROCS,
-                             wandb_kwargs=dict(mode="online"))  # "disabled" if DEBUG else "online"))
+# "disabled" if DEBUG else "online"))
 
 plot_path = os.path.join(tb.objects_path, "plots")
 os.makedirs(plot_path, exist_ok=True)

@@ -204,10 +204,6 @@ def policy_iteration(env, pi_opt, eta, stop_criterion, policy=None):
         policy = init_pi(env)
     data = []
     value = get_value(env, policy)
-    #stats = {"pi/return": env.p0 @ value}
-    #prob_right = policy[0, 0]
-    #stats["pi/prob_right"] = prob_right
-    #save_stats(stats, global_step=0)
     for step in itertools.count(1):
         policy, value, stats = improve_pi(env, policy, pi_opt, eta=eta)
         data.append((policy, value))
