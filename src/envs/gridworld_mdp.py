@@ -1,15 +1,9 @@
-import random
-
 import emdp.gridworld.builder_tools
-from emdp import actions, MDP
+import numpy as np
 from emdp.gridworld import GridWorldMDP
 from emdp.gridworld.builder_tools import create_reward_matrix
 from emdp.gridworld.helper_utilities import flatten_state
 from emdp.gridworld.txt_utilities import get_char_matrix  # , ascii_to_walls
-from jax import numpy as jnp
-import numpy as np
-
-import config
 
 
 def two_states_gw():
@@ -26,9 +20,7 @@ def two_states_gw():
     reward_spec = {(2, 1): +1}
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
 
-    # target_state = pos_to_state(builder, (2, 2))
     p0 = flatten_state((1, 1), builder.grid_size, R.shape[0])
-    # p0[[2, 4, 5, 8]] = .25
     gw = GridWorldMDP(builder.P, R, 0.9, p0, terminal_states=(), size=builder.grid_size)
     return gw
 
@@ -45,50 +37,12 @@ def four_states_gw(goal):
     reward_spec = {goal: +1}
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
 
-    # target_state = pos_to_state(builder, (2, 2))
     p0 = flatten_state((1, 1), builder.grid_size, R.shape[0])
-    # p0[[2, 4, 5, 8]] = .25
     gw = GridWorldMDP(builder.P, R, 0.9, p0, terminal_states=(), size=builder.grid_size)
     return gw
 
 
-def pos_to_state(builder, pos):
-    target_state = flatten_state(pos, builder.grid_size, builder.state_space)
-    target_state = target_state.argmax()
-    return target_state
-
-
-def get_two_states():
-    env = two_states_gw()
-    return env
-
-
-def get_four_states():
-    env = four_states_gw((2, 0))
-    return env
-
-
-def get_four_rooms(gamma):
-    env = four_rooms_gw(gamma)
-    return env
-
-
-def ascii_to_walls(ascii_room):
-    walls = []
-    empty = []
-    bomb = []
-    for row_idx, r in enumerate(ascii_room):
-        for column_idx, c in enumerate(r):
-            if c == "#":
-                walls.append((row_idx, column_idx))
-            elif c == "!":
-                bomb.append((row_idx, column_idx))
-            else:
-                empty.append((row_idx, column_idx))
-    return walls, empty, bomb
-
-
-def get_cliff(gamma):
+def cliff_gw(gamma):
     ascii_room = """
     #######
     # !!! # 
@@ -123,12 +77,7 @@ def get_cliff(gamma):
         P[idx, :, 8] = 1
     p0 = np.zeros(R.shape[0])
     p0[flatten_state((1, 1), grid_size, grid_size * grid_size).nonzero()] = 1.
-    # p0[empty] = 1 / len(empty)
     gw = GridWorldMDP(P, R, gamma, p0, terminal_states=[(1, grid_size - 2)], size=builder.grid_size)
-    # idx  = grid_size * 2 + grid_size - 2
-    # R[idx, :] = 1.
-    # reward change action up
-    # R[idx, 2] = 1/config.gamma ** 3
     return gw
 
 
@@ -163,7 +112,7 @@ def four_rooms_gw(gamma):
     for r, c in bomb:
         builder.add_wall_at((r, c))
     R = create_reward_matrix(builder.P.shape[0], builder.grid_size, reward_spec, action_space=builder.P.shape[1])
-    P =builder.P
+    P = builder.P
     for b in bomb:
         idx = grid_size * b[0] + b[1]
         R[idx, :] = -10
@@ -173,3 +122,24 @@ def four_rooms_gw(gamma):
     p0[grid_size + 1] = 1
     gw = GridWorldMDP(builder.P, R, gamma, p0, terminal_states=[(grid_size - 2, grid_size - 2)], size=builder.grid_size)
     return gw
+
+
+def pos_to_state(builder, pos):
+    target_state = flatten_state(pos, builder.grid_size, builder.state_space)
+    target_state = target_state.argmax()
+    return target_state
+
+
+def ascii_to_walls(ascii_room):
+    walls = []
+    empty = []
+    bomb = []
+    for row_idx, r in enumerate(ascii_room):
+        for column_idx, c in enumerate(r):
+            if c == "#":
+                walls.append((row_idx, column_idx))
+            elif c == "!":
+                bomb.append((row_idx, column_idx))
+            else:
+                empty.append((row_idx, column_idx))
+    return walls, empty, bomb
