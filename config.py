@@ -2,7 +2,7 @@ import sys
 import os
 import experiment_buddy
 
-agent_id = "ppo"
+agent_id = "mdpo"
 env_id = "four_rooms"
 
 # env params
@@ -13,7 +13,7 @@ env_kwargs = {
 eta = 0.1
 
 # approx pi
-approximate_pi = True
+approximate_pi = False
 opt_epochs = 10
 lr = 1.
 
